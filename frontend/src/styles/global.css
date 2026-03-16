@@ -64,6 +64,27 @@ label {
   font-size: 0.95rem;
 }
 
+.field-block {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.field-heading {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.field-label {
+  color: #203247;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.field-helper {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -184,6 +205,53 @@ h3 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.chip-grid,
+.color-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.chip-button,
+.color-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid rgba(33, 65, 96, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  color: #25384e;
+  transition: 160ms ease;
+}
+
+.chip-button:hover,
+.color-swatch:hover {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(29, 91, 121, 0.2);
+}
+
+.chip-button.is-selected,
+.color-swatch.is-selected {
+  background: rgba(29, 91, 121, 0.1);
+  border-color: rgba(29, 91, 121, 0.34);
+  color: var(--primary-dark);
+  box-shadow: inset 0 0 0 1px rgba(29, 91, 121, 0.08);
+}
+
+.color-swatch {
+  min-width: 132px;
+  justify-content: flex-start;
+}
+
+.color-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 2px solid rgba(19, 34, 56, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
 .full-width {

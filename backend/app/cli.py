@@ -2,7 +2,10 @@ import click
 
 from .extensions import db
 from .models import User
-from .services.demo_wardrobe_seed import seed_demo_wardrobe_for_user
+from .services.demo_wardrobe_seed import (
+    get_demo_wardrobe_item_count,
+    seed_demo_wardrobe_for_user,
+)
 
 
 def register_cli(app):
@@ -35,4 +38,4 @@ def register_cli(app):
         click.echo(f"Пользователь создан: {'да' if created else 'нет'}")
         click.echo(f"Email: {email}")
         click.echo(f"Пароль: {password}")
-        click.echo("Добавлено вещей: 17")
+        click.echo(f"Добавлено вещей: {get_demo_wardrobe_item_count()}")

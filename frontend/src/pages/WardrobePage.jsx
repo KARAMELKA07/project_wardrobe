@@ -6,6 +6,11 @@ import {
   getCategoryPlaceholderUrl,
   resolveItemImageUrl,
 } from "../api/client";
+import {
+  getColorLabel,
+  getStyleLabel,
+  getSubcategoryLabel,
+} from "../data/clothingOptions";
 import useAuth from "../hooks/useAuth";
 import {
   translateCategory,
@@ -87,17 +92,25 @@ export default function WardrobePage() {
                   <h3>{item.title}</h3>
                   <p className="muted-text">
                     {translateCategory(item.category)}
-                    {item.subcategory ? ` | ${item.subcategory}` : ""}
+                    {item.subcategory ? ` | ${getSubcategoryLabel(item.subcategory)}` : ""}
                   </p>
                 </div>
                 <span className="badge">{translateSeason(item.season)}</span>
               </div>
 
               <p className="muted-text">
-                Цвета: {item.colors?.length ? item.colors.join(", ") : "не указаны"}
+                Цвета:
+                {" "}
+                {item.colors?.length
+                  ? item.colors.map(getColorLabel).join(", ")
+                  : "не указаны"}
               </p>
               <p className="muted-text">
-                Стили: {item.styles?.length ? item.styles.join(", ") : "не указаны"}
+                Стили:
+                {" "}
+                {item.styles?.length
+                  ? item.styles.map(getStyleLabel).join(", ")
+                  : "не указаны"}
               </p>
               <p className="muted-text">
                 Формальность: {translateFormality(item.formality)}

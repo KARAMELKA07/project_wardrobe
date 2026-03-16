@@ -2,6 +2,7 @@ import {
   getCategoryPlaceholderUrl,
   resolveItemImageUrl,
 } from "../api/client";
+import { getColorLabel } from "../data/clothingOptions";
 import {
   translateCategory,
   translateEventType,
@@ -56,7 +57,9 @@ export default function OutfitCard({ outfit, onSave, onReact, isSaved }) {
                 <p className="muted-text">
                   {translateRole(itemRole)}
                   {clothingItem.category ? ` | ${translateCategory(clothingItem.category)}` : ""}
-                  {clothingItem.colors?.length ? ` | ${clothingItem.colors.join(", ")}` : ""}
+                  {clothingItem.colors?.length
+                    ? ` | ${clothingItem.colors.map(getColorLabel).join(", ")}`
+                    : ""}
                 </p>
               </div>
             </div>
