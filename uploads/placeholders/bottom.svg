@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240">
+  <rect width="320" height="240" fill="#F8EEE1" />
+  <rect x="56" y="40" width="208" height="160" rx="24" fill="#F0D8B7" />
+  <path d="M118 66h84l18 126h-38l-11-80-11 80h-38z" fill="#C77635" />
+  <text x="160" y="222" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#8A4C1D">НИЗ</text>
+</svg>

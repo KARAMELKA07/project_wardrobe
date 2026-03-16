@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240">
+  <rect width="320" height="240" fill="#EBEEF5" />
+  <rect x="56" y="40" width="208" height="160" rx="24" fill="#D5DCE8" />
+  <path d="M112 52h96l32 48-30 22-18-18v96h-64v-96l-18 18-30-22z" fill="#556987" />
+  <path d="M148 52h24v150h-24z" fill="#EBEEF5" />
+  <text x="160" y="222" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#556987">ВЕРХНИЙ СЛОЙ</text>
+</svg>

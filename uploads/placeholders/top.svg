@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240">
+  <rect width="320" height="240" fill="#E7F0F7" />
+  <rect x="56" y="40" width="208" height="160" rx="24" fill="#C8DDEA" />
+  <path d="M105 72h110l26 36-24 20-20-20v92H123v-92l-20 20-24-20z" fill="#1D5B79" />
+  <text x="160" y="222" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#1D5B79">ВЕРХ</text>
+</svg>
