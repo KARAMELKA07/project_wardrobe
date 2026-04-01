@@ -3,16 +3,16 @@ from itertools import combinations, product
 
 
 FEATURE_WEIGHTS = {
-    "weather_condition_match": 0.22,
-    "temperature_match": 0.18,
-    "season_match": 0.14,
-    "color_harmony": 0.12,
-    "event_match": 0.1,
+    "color_harmony": 0.15,
+    "style_match": 0.15,
+    "event_match": 0.15,
+    "season_match": 0.1,
+    "temperature_match": 0.1,
+    "weather_condition_match": 0.1,
     "layering_correctness": 0.08,
     "completeness": 0.06,
-    "style_match": 0.05,
-    "user_preference_match": 0.03,
-    "constraints_match": 0.02,
+    "user_preference_match": 0.06,
+    "constraints_match": 0.05,
 }
 
 ROLE_ORDER = {
@@ -154,6 +154,9 @@ ROLE_COLOR_WEIGHTS = {
     "item": 2.0,
 }
 COLOR_SHARE_WEIGHTS = (0.7, 0.2, 0.1)
+MAX_PRIMARY_POOL = 12
+MAX_OUTERWEAR_POOL = 6
+MAX_ACCESSORY_POOL = 3
 EVENT_LABELS = {
     "office": "офис",
     "casual": "повседневный выход",
@@ -237,6 +240,122 @@ EVENT_RULES = {
     },
 }
 
+STYLE_FAMILY_MAP = {
+    "basic": "minimal",
+    "minimal": "minimal",
+    "classic": "classic",
+    "business": "classic",
+    "formal": "classic",
+    "casual": "casual",
+    "street": "casual",
+    "sport": "sport",
+    "athleisure": "sport",
+    "romantic": "romantic",
+    "evening": "evening",
+    "party": "evening",
+    "fashion": "fashion",
+    "statement": "fashion",
+}
+STYLE_COMPATIBILITY_PAIRS = {
+    frozenset({"minimal", "classic"}),
+    frozenset({"minimal", "casual"}),
+    frozenset({"classic", "romantic"}),
+    frozenset({"classic", "fashion"}),
+    frozenset({"casual", "sport"}),
+    frozenset({"casual", "fashion"}),
+    frozenset({"casual", "romantic"}),
+    frozenset({"evening", "fashion"}),
+    frozenset({"classic", "evening"}),
+}
+SUBCATEGORY_LAYER_LEVELS = {
+    "t_shirt": "base",
+    "shirt": "base",
+    "blouse": "base",
+    "crop_top": "base",
+    "polo": "base",
+    "longsleeve": "base",
+    "tank_top": "base",
+    "sweater": "mid",
+    "hoodie": "mid",
+    "cardigan": "mid",
+    "turtleneck": "mid",
+    "sweatshirt": "mid",
+    "vest_top": "mid",
+    "coat": "outer",
+    "parka": "outer",
+    "down_jacket": "outer",
+    "jacket": "outer",
+    "trench": "outer",
+    "blazer": "outer",
+    "leather_jacket": "outer",
+    "windbreaker": "outer",
+    "vest_outerwear": "outer",
+}
+WATERPROOF_OUTERWEAR_TYPES = {"trench", "parka", "down_jacket", "windbreaker", "jacket"}
+WINDPROOF_OUTERWEAR_TYPES = {"coat", "parka", "down_jacket", "windbreaker", "leather_jacket"}
+WATER_RESISTANT_MATERIALS = {"leather", "nylon", "polyester", "gabardine"}
+TEXTURE_ALIAS_MAP = {
+    "cotton": "soft_woven",
+    "linen": "soft_woven",
+    "silk": "fluid",
+    "viscose": "fluid",
+    "wool": "knit",
+    "cashmere": "knit",
+    "knit": "knit",
+    "jersey": "knit",
+    "denim": "structured",
+    "leather": "structured",
+    "suede": "structured",
+    "tweed": "structured",
+}
+SUBCATEGORY_TEXTURE_MAP = {
+    "jeans": "structured",
+    "coat": "structured",
+    "blazer": "structured",
+    "leather_jacket": "structured",
+    "trench": "structured",
+    "sweater": "knit",
+    "cardigan": "knit",
+    "hoodie": "knit",
+    "turtleneck": "knit",
+    "shirt": "soft_woven",
+    "blouse": "fluid",
+    "dress_shirt": "soft_woven",
+}
+FITTED_SUBCATEGORIES = {
+    "shirt",
+    "blouse",
+    "turtleneck",
+    "blazer",
+    "trousers",
+    "pumps",
+    "loafers",
+    "closed_shoes",
+}
+RELAXED_SUBCATEGORIES = {
+    "t_shirt",
+    "sweater",
+    "hoodie",
+    "cardigan",
+    "coat",
+    "parka",
+    "jacket",
+    "jeans",
+    "joggers",
+    "sneakers",
+}
+EVENT_DISALLOWED_STYLES = {
+    "office": {"sport"},
+    "evening": {"sport"},
+    "party": {"sport"},
+}
+EVENT_DISALLOWED_SUBCATEGORIES = {
+    "office": {"flip_flops", "slippers", "felt_boots", "shorts", "hoodie"},
+    "evening": {"flip_flops", "slippers", "felt_boots", "joggers", "hoodie"},
+    "party": {"felt_boots", "snow_boots", "flip_flops"},
+    "sport": {"blazer", "coat", "pumps", "loafers"},
+}
+
 
 class RecommendationEngine:
     def __init__(self, weights=None):
@@ -279,52 +398,76 @@ class RecommendationEngine:
             "outerwear",
             allow_empty=True,
         )
+        accessories = self._build_pool(
+            categorized_items["accessory"],
+            anchor_item,
+            "accessory",
+            allow_empty=True,
+        )
 
         if not tops or not bottoms or not shoes:
             return []
 
-        accessory_anchor = (
-            anchor_item if anchor_item and anchor_item.category == "accessory" else None
-        )
         constraints = self._normalize_tokens(request_context.get("constraints"))
         candidates = []
+        if anchor_item and anchor_item.category == "accessory":
+            accessory_pool = [anchor_item]
+        else:
+            accessory_pool = [item for item in accessories[:MAX_ACCESSORY_POOL] if item is not None]
+            accessory_pool = [None] + accessory_pool if accessory_pool else [None]
 
-        for top_item, bottom_item, shoes_item in product(tops[:20], bottoms[:20], shoes[:20]):
+        for top_item, bottom_item, shoes_item in product(
+            tops[:MAX_PRIMARY_POOL],
+            bottoms[:MAX_PRIMARY_POOL],
+            shoes[:MAX_PRIMARY_POOL],
+        ):
             base_candidate = [
                 self._make_candidate_entry("top", top_item),
                 self._make_candidate_entry("bottom", bottom_item),
                 self._make_candidate_entry("shoes", shoes_item),
             ]
-            if accessory_anchor:
-                base_candidate.append(
-                    self._make_candidate_entry("accessory", accessory_anchor)
-                )
+            for accessory_item in accessory_pool:
+                candidate_with_accessory = list(base_candidate)
+                if accessory_item is not None:
+                    candidate_with_accessory.append(
+                        self._make_candidate_entry("accessory", accessory_item)
+                    )
 
-            if (
-                not anchor_item or anchor_item.category != "outerwear"
-            ) and self._is_valid_candidate(base_candidate, constraints, request_context):
-                candidates.append(base_candidate)
+                if (
+                    (not anchor_item or anchor_item.category != "outerwear")
+                    and self._is_valid_candidate(
+                    candidate_with_accessory,
+                    constraints,
+                    request_context,
+                    )
+                ):
+                    candidates.append(candidate_with_accessory)
 
-            for outerwear_item in outerwear[:20]:
-                if outerwear_item is None:
-                    continue
-                layered_candidate = list(base_candidate) + [
-                    self._make_candidate_entry("outerwear", outerwear_item)
-                ]
-                if self._is_valid_candidate(layered_candidate, constraints, request_context):
-                    candidates.append(layered_candidate)
+                for outerwear_item in outerwear[:MAX_OUTERWEAR_POOL]:
+                    if outerwear_item is None:
+                        continue
+                    layered_candidate = list(candidate_with_accessory) + [
+                        self._make_candidate_entry("outerwear", outerwear_item)
+                    ]
+                    if self._is_valid_candidate(
+                        layered_candidate,
+                        constraints,
+                        request_context,
+                    ):
+                        candidates.append(layered_candidate)
 
         return self._deduplicate_candidates(candidates)
 
     def evaluate_outfit(self, candidate, request_context, user_preferences=None):
         color_detail = self._evaluate_color_harmony(candidate, request_context)
+        contextual_weights = self._get_contextual_weights(request_context)
         feature_scores = self.get_feature_scores(
             candidate,
             request_context,
             user_preferences or {},
             color_detail=color_detail,
         )
-        total_score = self.calculate_total_score(feature_scores)
+        total_score = self.calculate_total_score(feature_scores, contextual_weights)
         reasons, explanation = self.build_outfit_explanation(
             feature_scores,
             request_context,
@@ -350,6 +493,7 @@ class RecommendationEngine:
             "total_score": total_score,
             "feature_scores": feature_scores,
             "scores_by_feature": feature_scores,
+            "applied_weights": contextual_weights,
             "reasons": reasons,
             "explanation": explanation,
         }
@@ -378,7 +522,7 @@ class RecommendationEngine:
                 candidate,
                 request_context,
             ),
-            "completeness": self.score_completeness(candidate),
+            "completeness": self.score_completeness(candidate, request_context),
             "layering_correctness": self.score_layering_correctness(
                 candidate,
                 request_context,
@@ -395,9 +539,10 @@ class RecommendationEngine:
             ),
         }
 
-    def calculate_total_score(self, feature_scores):
+    def calculate_total_score(self, feature_scores, weights=None):
+        active_weights = weights or self.weights
         total_score = 0.0
-        for feature_name, weight in self.weights.items():
+        for feature_name, weight in active_weights.items():
             total_score += feature_scores.get(feature_name, 0.0) * weight
         return round(min(max(total_score, 0.0), 1.0), 4)
 
@@ -490,47 +635,57 @@ class RecommendationEngine:
         return self._evaluate_color_harmony(outfit, request_context)["score"]
 
     def score_style_match(self, items, request_context):
-        item_styles = []
-        for item in items:
-            normalized_styles = self._normalize_tokens(item.styles or [])
-            if normalized_styles:
-                item_styles.append(set(normalized_styles))
+        style_profiles = [
+            self._get_item_style_families(item)
+            for item in items
+            if self._get_item_style_families(item)
+        ]
+        if not style_profiles:
+            return 0.65
 
-        if not item_styles:
-            return 0.6
+        style_counter = Counter(
+            style_family
+            for style_profile in style_profiles
+            for style_family in style_profile
+        )
+        dominant_ratio = style_counter.most_common(1)[0][1] / len(style_profiles)
 
-        style_counter = Counter(style for styles in item_styles for style in styles)
-        dominant_ratio = style_counter.most_common(1)[0][1] / len(items)
+        pair_scores = [
+            self._score_style_profile_pair(left_profile, right_profile)
+            for left_profile, right_profile in combinations(style_profiles, 2)
+        ]
+        pairwise_score = sum(pair_scores) / len(pair_scores) if pair_scores else 0.9
+
         preferred_style = self._normalize_token(request_context.get("preferred_style"))
-        preferred_bonus = 0.7
-        if preferred_style:
-            preferred_bonus = (
-                sum(1 for styles in item_styles if preferred_style in styles)
-                / len(item_styles)
-            )
+        preferred_family = STYLE_FAMILY_MAP.get(preferred_style, preferred_style)
+        preferred_bonus = 0.75
+        if preferred_family:
+            preferred_bonus = sum(
+                1.0 if preferred_family in style_profile else 0.5
+                for style_profile in style_profiles
+            ) / len(style_profiles)
 
-        return round(min(1.0, (dominant_ratio * 0.7) + (preferred_bonus * 0.3)), 4)
+        return round(
+            min(
+                1.0,
+                (dominant_ratio * 0.45)
+                + (pairwise_score * 0.35)
+                + (preferred_bonus * 0.2),
+            ),
+            4,
+        )
 
     def score_event_match(self, items, request_context):
         event_type = self._normalize_token(request_context.get("event_type")) or "casual"
         event_rule = EVENT_RULES.get(event_type, EVENT_RULES["casual"])
+        if any(not self._item_matches_event_hard_rule(item, event_type) for item in items):
+            return 0.0
 
-        style_scores = []
-        formality_scores = []
-        for item in items:
-            styles = set(self._normalize_tokens(item.styles or []))
-            style_scores.append(1.0 if styles & event_rule["styles"] else 0.55)
-
-            item_formality = self._normalize_token(item.formality)
-            if item_formality in event_rule["formalities"]:
-                formality_scores.append(1.0)
-            elif item_formality == "casual" and "smart" in event_rule["formalities"]:
-                formality_scores.append(0.7)
-            else:
-                formality_scores.append(0.45)
-
-        total = (sum(style_scores) + sum(formality_scores)) / (2 * len(items))
-        return round(total, 4)
+        item_scores = [
+            self._score_item_event_fit(item, event_type, event_rule)
+            for item in items
+        ]
+        return round(sum(item_scores) / len(item_scores), 4)
 
     def score_season_match(self, items, request_context):
         target_season = self._normalize_token(request_context.get("season"))
@@ -547,24 +702,30 @@ class RecommendationEngine:
         if not item_seasons:
             return 0.7
 
+        target_score = 0.78
         if target_season:
             target_matches = [
-                1.0 if season in {target_season, "all_season"} else 0.4
-                for season in item_seasons
+                self._score_item_season_fit(item_season, target_season)
+                for item_season in item_seasons
             ]
             target_score = sum(target_matches) / len(target_matches)
-        else:
-            target_score = 0.75
 
-        filtered_seasons = [season for season in item_seasons if season != "all_season"]
+        filtered_seasons = [
+            item_season for item_season in item_seasons if item_season != "all_season"
+        ]
+        internal_consistency = 1.0
         if filtered_seasons:
             internal_consistency = (
                 Counter(filtered_seasons).most_common(1)[0][1] / len(filtered_seasons)
             )
-        else:
-            internal_consistency = 1.0
 
-        return round((target_score * 0.65) + (internal_consistency * 0.35), 4)
+        insulation_score = self._score_insulation_balance(items, request_context)
+        return round(
+            (target_score * 0.4)
+            + (internal_consistency * 0.2)
+            + (insulation_score * 0.4),
+            4,
+        )
 
     def score_temperature_match(self, candidate, request_context):
         temperature = request_context.get("temperature")
@@ -572,38 +733,21 @@ class RecommendationEngine:
             return 0.7
 
         items = [entry["item"] for entry in candidate]
-        warmth_level = sum(self._estimate_item_warmth(item) for item in items)
         shoes = self._get_item_by_category(candidate, "shoes")
-        bottom = self._get_item_by_category(candidate, "bottom")
         outerwear_score = self._score_outerwear_fit(
             candidate,
             temperature,
             request_context.get("weather_condition"),
         )
-
-        if temperature <= -5:
-            ideal_warmth = 9.2
-        elif temperature <= 10:
-            ideal_warmth = 6.8
-        elif temperature <= 20:
-            ideal_warmth = 4.8
-        else:
-            ideal_warmth = 3.0
-
-        distance = abs(warmth_level - ideal_warmth)
-        warmth_score = max(0.0, 1 - (distance / 5.5))
+        warmth_score = self._score_insulation_balance(items, request_context)
         shoes_score = self._score_shoe_temperature_fit(shoes, temperature)
-        bottom_score = self._score_bottom_weather_fit(
-            bottom,
-            request_context.get("weather_condition"),
-            temperature,
-        )
+        layer_score = self._score_layer_coverage(candidate, request_context)
 
         return round(
-            (warmth_score * 0.35)
-            + (shoes_score * 0.35)
-            + (outerwear_score * 0.2)
-            + (bottom_score * 0.1),
+            (warmth_score * 0.45)
+            + (shoes_score * 0.25)
+            + (layer_score * 0.2)
+            + (outerwear_score * 0.1),
             4,
         )
 
@@ -616,6 +760,11 @@ class RecommendationEngine:
         temperature = request_context.get("temperature")
         shoes = self._get_item_by_category(candidate, "shoes")
         bottom = self._get_item_by_category(candidate, "bottom")
+        protection_score = self._score_weather_protection(
+            candidate,
+            normalized_weather,
+            temperature,
+        )
 
         shoes_score = self._score_shoe_weather_fit(
             shoes,
@@ -637,15 +786,29 @@ class RecommendationEngine:
             return 0.0
 
         return round(
-            (shoes_score * 0.55) + (outerwear_score * 0.3) + (bottom_score * 0.15),
+            (protection_score * 0.35)
+            + (shoes_score * 0.3)
+            + (outerwear_score * 0.2)
+            + (bottom_score * 0.15),
             4,
         )
 
-    def score_completeness(self, candidate):
+    def score_completeness(self, candidate, request_context=None):
         roles = {entry["role"] for entry in candidate}
         required_roles = {"top", "bottom", "shoes"}
         matched_roles = len(roles & required_roles)
-        return round(matched_roles / len(required_roles), 4)
+        base_score = matched_roles / len(required_roles)
+        request_context = request_context or {}
+        needs_outerwear = self._requires_outerwear(request_context)
+        outerwear_score = 1.0 if not needs_outerwear else 1.0 if "outerwear" in roles else 0.2
+        event_type = self._normalize_token(request_context.get("event_type"))
+        accessory_bonus = 0.85
+        if event_type in {"office", "evening", "party", "date"}:
+            accessory_bonus = 1.0 if "accessory" in roles else 0.55
+        return round(
+            min(1.0, (base_score * 0.75) + (outerwear_score * 0.15) + (accessory_bonus * 0.1)),
+            4,
+        )
 
     def score_layering_correctness(self, candidate, request_context):
         role_counts = Counter(entry["role"] for entry in candidate)
@@ -672,38 +835,58 @@ class RecommendationEngine:
         if weather_condition in {"rain", "snow", "wind"} and not has_outerwear:
             return 0.35
 
-        return 1.0
+        layer_score = self._score_layer_coverage(candidate, request_context)
+        texture_score = self._score_texture_contrast(candidate)
+        silhouette_score = self._score_silhouette_balance(candidate)
+        return round(
+            (layer_score * 0.55)
+            + (texture_score * 0.2)
+            + (silhouette_score * 0.25),
+            4,
+        )
 
     def score_user_preference_match(self, candidate, request_context, user_preferences):
         items = [entry["item"] for entry in candidate]
-        preferred_colors = set(
-            self._normalize_tokens(user_preferences.get("preferred_colors"))
-        )
-        preferred_colors |= set(
-            self._normalize_tokens(request_context.get("preferred_colors"))
-        )
+        preferred_colors = {
+            self._normalize_color(color)
+            for color in self._split_color_values(user_preferences.get("preferred_colors"))
+        }
+        preferred_colors |= {
+            self._normalize_color(color)
+            for color in self._split_color_values(request_context.get("preferred_colors"))
+        }
+        preferred_colors.discard(None)
 
-        preferred_styles = set(
-            self._normalize_tokens(user_preferences.get("preferred_styles"))
-        )
+        preferred_styles = {
+            STYLE_FAMILY_MAP.get(style, style)
+            for style in self._normalize_tokens(user_preferences.get("preferred_styles"))
+        }
         request_style = self._normalize_token(request_context.get("preferred_style"))
         if request_style:
-            preferred_styles.add(request_style)
+            preferred_styles.add(STYLE_FAMILY_MAP.get(request_style, request_style))
 
         colors_score = 0.75
         if preferred_colors:
             color_hits = 0
             for item in items:
-                item_colors = set(self._normalize_tokens(item.colors or []))
+                item_colors = set(self._extract_item_colors(item))
+                item_families = {
+                    self._get_color_family(color_token) for color_token in item_colors
+                }
                 if item_colors & preferred_colors:
                     color_hits += 1
+                elif any(
+                    self._get_color_family(color_token) in item_families
+                    for color_token in preferred_colors
+                ):
+                    color_hits += 0.75
             colors_score = color_hits / len(items)
 
         styles_score = 0.75
         if preferred_styles:
             style_hits = 0
             for item in items:
-                item_styles = set(self._normalize_tokens(item.styles or []))
+                item_styles = self._get_item_style_families(item)
                 if item_styles & preferred_styles:
                     style_hits += 1
             styles_score = style_hits / len(items)
@@ -718,7 +901,9 @@ class RecommendationEngine:
             )
 
         return round(
-            (colors_score * 0.4) + (styles_score * 0.4) + (constraint_alignment * 0.2),
+            (colors_score * 0.45)
+            + (styles_score * 0.35)
+            + (constraint_alignment * 0.2),
             4,
         )
 
@@ -780,6 +965,11 @@ class RecommendationEngine:
             return False
 
         if self._violates_hard_constraints(candidate, constraints):
+            return False
+        if any(
+            not self._item_matches_event_hard_rule(entry["item"], self._normalize_token(request_context.get("event_type")) or "casual")
+            for entry in candidate
+        ):
             return False
 
         shoes = self._get_item_by_category(candidate, "shoes")
@@ -890,6 +1080,365 @@ class RecommendationEngine:
             )
 
         return entries
+
+    def _normalize_weights(self, weights):
+        total_weight = sum(max(weight, 0.0) for weight in weights.values()) or 1.0
+        return {
+            feature_name: round(max(weight, 0.0) / total_weight, 4)
+            for feature_name, weight in weights.items()
+        }
+
+    def _get_contextual_weights(self, request_context):
+        weights = dict(self.weights)
+        temperature = request_context.get("temperature")
+        weather_condition = self._normalize_token(request_context.get("weather_condition"))
+        event_type = self._normalize_token(request_context.get("event_type"))
+
+        if weather_condition in {"snow", "rain", "wind"} or (
+            temperature is not None and temperature <= 5
+        ):
+            weights["weather_condition_match"] += 0.05
+            weights["temperature_match"] += 0.04
+            weights["season_match"] += 0.03
+            weights["layering_correctness"] += 0.03
+            weights["color_harmony"] -= 0.05
+            weights["style_match"] -= 0.03
+            weights["user_preference_match"] -= 0.04
+            weights["completeness"] -= 0.03
+
+        if event_type in {"office", "evening", "party", "date"}:
+            weights["event_match"] += 0.03
+            weights["style_match"] += 0.02
+            weights["color_harmony"] += 0.01
+            weights["user_preference_match"] -= 0.03
+            weights["constraints_match"] -= 0.03
+
+        return self._normalize_weights(weights)
+
+    def _get_item_style_families(self, item):
+        style_families = {
+            STYLE_FAMILY_MAP.get(style_token, style_token)
+            for style_token in self._normalize_tokens(item.styles or [])
+        }
+        style_families.discard(None)
+
+        if style_families:
+            return style_families
+
+        formality = self._normalize_token(item.formality)
+        subcategory = self._normalize_token(item.subcategory)
+        if formality in {"formal", "smart"} or subcategory in {"blazer", "loafers", "pumps"}:
+            return {"classic"}
+        if subcategory in {"hoodie", "joggers", "sneakers", "summer_sneakers"}:
+            return {"casual"}
+        return {"casual"}
+
+    def _score_style_profile_pair(self, left_profile, right_profile):
+        if left_profile & right_profile:
+            return 1.0
+        if any(
+            frozenset({left_family, right_family}) in STYLE_COMPATIBILITY_PAIRS
+            for left_family in left_profile
+            for right_family in right_profile
+        ):
+            return 0.8
+        return 0.45
+
+    def _item_matches_event_hard_rule(self, item, event_type):
+        disallowed_styles = EVENT_DISALLOWED_STYLES.get(event_type, set())
+        if self._get_item_style_families(item) & disallowed_styles:
+            return False
+
+        subcategory = self._normalize_token(item.subcategory)
+        if subcategory in EVENT_DISALLOWED_SUBCATEGORIES.get(event_type, set()):
+            return False
+
+        return True
+
+    def _score_shoe_event_fit(self, item, event_type):
+        subcategory = self._normalize_token(item.subcategory)
+        if event_type == "office":
+            if subcategory in {"loafers", "pumps", "closed_shoes", "boots", "ankle_boots"}:
+                return 1.0
+            if subcategory in {"sneakers", "summer_sneakers"}:
+                return 0.7
+            return 0.25
+
+        if event_type in {"evening", "party", "date"}:
+            if subcategory in {"pumps", "heels", "loafers", "closed_shoes", "boots", "ankle_boots"}:
+                return 1.0
+            if subcategory in {"sneakers", "summer_sneakers"}:
+                return 0.65
+            return 0.2
+
+        if event_type == "sport":
+            if subcategory in {"sneakers", "summer_sneakers"}:
+                return 1.0
+            if subcategory in {"boots", "ankle_boots"}:
+                return 0.45
+            return 0.2
+
+        return 0.9 if subcategory not in {"pumps", "heels"} else 0.75
+
+    def _score_item_event_fit(self, item, event_type, event_rule):
+        allowed_styles = {
+            STYLE_FAMILY_MAP.get(style_token, style_token)
+            for style_token in event_rule["styles"]
+        }
+        style_families = self._get_item_style_families(item)
+        if style_families & allowed_styles:
+            style_score = 1.0
+        elif any(
+            frozenset({style_family, allowed_style}) in STYLE_COMPATIBILITY_PAIRS
+            for style_family in style_families
+            for allowed_style in allowed_styles
+        ):
+            style_score = 0.7
+        else:
+            style_score = 0.25
+
+        formality = self._normalize_token(item.formality)
+        if formality in event_rule["formalities"]:
+            formality_score = 1.0
+        elif formality == "smart" and "formal" in event_rule["formalities"]:
+            formality_score = 0.8
+        elif formality == "casual" and "smart" in event_rule["formalities"]:
+            formality_score = 0.55
+        else:
+            formality_score = 0.25
+
+        shoe_score = 1.0
+        if self._normalize_token(item.category) == "shoes":
+            shoe_score = self._score_shoe_event_fit(item, event_type)
+
+        return round(
+            (style_score * 0.45) + (formality_score * 0.35) + (shoe_score * 0.2),
+            4,
+        )
+
+    def _score_item_season_fit(self, item_season, target_season):
+        normalized_item_season = self._normalize_token(item_season)
+        if normalized_item_season in {None, "all_season"}:
+            return 0.9
+        if normalized_item_season == target_season:
+            return 1.0
+
+        adjacent_seasons = {
+            frozenset({"winter", "autumn"}),
+            frozenset({"autumn", "spring"}),
+            frozenset({"spring", "summer"}),
+        }
+        if frozenset({normalized_item_season, target_season}) in adjacent_seasons:
+            return 0.72
+        return 0.35
+
+    def _estimate_required_insulation(self, request_context):
+        temperature = request_context.get("temperature")
+        target_season = self._normalize_token(request_context.get("season"))
+
+        if temperature is not None:
+            if temperature <= -15:
+                return 10.2
+            if temperature <= -5:
+                return 8.8
+            if temperature <= 5:
+                return 7.1
+            if temperature <= 15:
+                return 5.8
+            if temperature <= 24:
+                return 4.3
+            return 3.0
+
+        return {
+            "winter": 8.5,
+            "autumn": 6.3,
+            "spring": 5.7,
+            "summer": 3.2,
+        }.get(target_season, 5.2)
+
+    def _score_insulation_balance(self, items, request_context):
+        provided_insulation = sum(self._estimate_item_warmth(item) for item in items)
+        required_insulation = self._estimate_required_insulation(request_context)
+        if required_insulation <= 0:
+            return 0.8
+
+        if provided_insulation <= required_insulation:
+            return round(min(provided_insulation / required_insulation, 1.0), 4)
+
+        excess_ratio = (provided_insulation - required_insulation) / required_insulation
+        return round(max(0.3, 1.0 - (excess_ratio * 0.35)), 4)
+
+    def _infer_layer_level(self, item):
+        explicit_layer_level = self._normalize_token(getattr(item, "layer_level", None))
+        if explicit_layer_level in {"base", "mid", "outer", "support"}:
+            return explicit_layer_level
+
+        category = self._normalize_token(item.category)
+        subcategory = self._normalize_token(item.subcategory)
+        if category == "outerwear":
+            return "outer"
+        if subcategory in SUBCATEGORY_LAYER_LEVELS:
+            return SUBCATEGORY_LAYER_LEVELS[subcategory]
+        if category == "top":
+            return "base"
+        return None
+
+    def _get_required_layers(self, request_context):
+        temperature = request_context.get("temperature")
+        weather_condition = self._normalize_token(request_context.get("weather_condition"))
+
+        if weather_condition == "snow" or (temperature is not None and temperature <= 0):
+            return {"base", "mid", "outer"}
+        if weather_condition in {"rain", "wind"} or (temperature is not None and temperature <= 12):
+            return {"base", "outer"}
+        return {"base"}
+
+    def _score_layer_coverage(self, candidate, request_context):
+        layer_levels = {
+            self._infer_layer_level(entry["item"])
+            for entry in candidate
+            if self._infer_layer_level(entry["item"])
+        }
+        required_layers = self._get_required_layers(request_context)
+        coverage_score = len(layer_levels & required_layers) / len(required_layers)
+
+        temperature = request_context.get("temperature")
+        if temperature is not None and temperature >= 24 and "outer" in layer_levels:
+            outerwear = self._get_item_by_category(candidate, "outerwear")
+            if outerwear and self._normalize_token(outerwear.subcategory) in HEAVY_OUTERWEAR_TYPES:
+                coverage_score *= 0.45
+
+        return round(min(max(coverage_score, 0.0), 1.0), 4)
+
+    def _get_texture_key(self, item):
+        material = self._normalize_token(getattr(item, "material", None))
+        subcategory = self._normalize_token(item.subcategory)
+        if material in TEXTURE_ALIAS_MAP:
+            return TEXTURE_ALIAS_MAP[material]
+        if subcategory in SUBCATEGORY_TEXTURE_MAP:
+            return SUBCATEGORY_TEXTURE_MAP[subcategory]
+        category = self._normalize_token(item.category)
+        return {
+            "outerwear": "structured",
+            "shoes": "structured",
+            "accessory": "structured",
+            "top": "soft_woven",
+            "bottom": "structured",
+        }.get(category, "soft_woven")
+
+    def _score_texture_contrast(self, candidate):
+        items = [
+            entry["item"]
+            for entry in candidate
+            if entry["role"] in {"top", "bottom", "outerwear", "accessory"}
+        ]
+        if len(items) < 2:
+            return 0.7
+
+        unique_textures = {self._get_texture_key(item) for item in items}
+        unique_count = len(unique_textures)
+        if unique_count == 1:
+            return 0.45
+        if unique_count == 2:
+            return 0.72
+        return min(1.0, 0.82 + ((unique_count - 3) * 0.06))
+
+    def _infer_fit_profile(self, item):
+        explicit_fit = self._normalize_token(getattr(item, "fit", None))
+        explicit_fit_map = {
+            "fitted": "fitted",
+            "balanced": "balanced",
+            "loose": "loose",
+            "oversized": "loose",
+        }
+        if explicit_fit in explicit_fit_map:
+            return explicit_fit_map[explicit_fit]
+
+        subcategory = self._normalize_token(item.subcategory)
+        if subcategory in FITTED_SUBCATEGORIES:
+            return "fitted"
+        if subcategory in RELAXED_SUBCATEGORIES:
+            return "loose"
+
+        style_families = self._get_item_style_families(item)
+        if "classic" in style_families or "romantic" in style_families:
+            return "fitted"
+        if "sport" in style_families or "casual" in style_families:
+            return "loose"
+        return "balanced"
+
+    def _score_silhouette_balance(self, candidate):
+        fit_profiles = [
+            self._infer_fit_profile(entry["item"])
+            for entry in candidate
+            if entry["role"] in {"top", "bottom", "outerwear"}
+        ]
+        if not fit_profiles:
+            return 0.7
+
+        loose_count = sum(1 for fit_profile in fit_profiles if fit_profile == "loose")
+        fitted_count = sum(1 for fit_profile in fit_profiles if fit_profile == "fitted")
+        if loose_count == 0 and fitted_count == 0:
+            return 0.7
+
+        return round(
+            1.0 - abs(loose_count - fitted_count) / (loose_count + fitted_count),
+            4,
+        )
+
+    def _score_weather_protection(self, candidate, weather_condition, temperature):
+        if weather_condition == "sunny":
+            outerwear = self._get_item_by_category(candidate, "outerwear")
+            if (
+                outerwear
+                and temperature is not None
+                and temperature >= 24
+                and self._normalize_token(outerwear.subcategory) in HEAVY_OUTERWEAR_TYPES
+            ):
+                return 0.4
+            return 0.9
+
+        if weather_condition == "cloudy":
+            return 0.88 if not self._requires_outerwear({"temperature": temperature, "weather_condition": weather_condition}) else 0.78
+
+        outerwear = self._get_item_by_category(candidate, "outerwear")
+        if outerwear is None:
+            return 0.15 if weather_condition in {"rain", "snow"} else 0.45
+
+        outerwear_subcategory = self._normalize_token(outerwear.subcategory)
+        outerwear_material = self._normalize_token(outerwear.material)
+        explicit_waterproof = bool(getattr(outerwear, "waterproof", False))
+        explicit_windproof = bool(getattr(outerwear, "windproof", False))
+
+        if weather_condition == "rain":
+            if (
+                explicit_waterproof
+                or explicit_windproof
+                or outerwear_subcategory in WATERPROOF_OUTERWEAR_TYPES
+                or outerwear_material in WATER_RESISTANT_MATERIALS
+            ):
+                return 1.0
+            if outerwear_subcategory in WINDPROOF_OUTERWEAR_TYPES:
+                return 0.75
+            return 0.65
+
+        if weather_condition == "snow":
+            if (
+                explicit_windproof
+                or explicit_waterproof
+                or outerwear_subcategory in HEAVY_OUTERWEAR_TYPES | WINDPROOF_OUTERWEAR_TYPES
+            ):
+                return 1.0
+            return 0.55
+
+        if weather_condition == "wind":
+            if explicit_windproof or outerwear_subcategory in WINDPROOF_OUTERWEAR_TYPES:
+                return 1.0
+            if explicit_waterproof or outerwear_subcategory in WATERPROOF_OUTERWEAR_TYPES:
+                return 0.82
+            return 0.7
+
+        return 0.8
 
     def _split_color_values(self, colors):
         if not colors:
@@ -1163,6 +1712,56 @@ class RecommendationEngine:
 
         return round(min(max(score, 0.0), 1.0), 4)
 
+    def _score_color_accent_balance(self, profile):
+        known_weight = profile["known_weight"]
+        if known_weight <= 0:
+            return 0.62
+
+        family_shares = sorted(
+            (
+                weight / known_weight
+                for family, weight in profile["family_weights"].items()
+                if family != "unknown"
+            ),
+            reverse=True,
+        )
+        if profile["neutral_share"] >= 0.65:
+            return 0.9
+
+        significant_share_count = len([share for share in family_shares if share >= 0.12])
+        if significant_share_count <= 1:
+            return 0.88
+        if significant_share_count == 2:
+            dominant_share, secondary_share = family_shares[:2]
+            imbalance = (
+                (abs(dominant_share - 0.7) / 0.7)
+                + (abs(secondary_share - 0.3) / 0.3)
+            ) / 2
+            return round(max(0.0, 1.0 - imbalance), 4)
+        if significant_share_count == 3:
+            dominant_share, secondary_share, accent_share = family_shares[:3]
+            imbalance = (
+                (abs(dominant_share - 0.5) / 0.5)
+                + (abs(secondary_share - 0.3) / 0.3)
+                + (abs(accent_share - 0.2) / 0.2)
+            ) / 3
+            return round(max(0.0, 1.0 - imbalance), 4)
+
+        while len(family_shares) < 3:
+            family_shares.append(0.0)
+
+        dominant_share, secondary_share, accent_share = family_shares[:3]
+        imbalance = (
+            (abs(dominant_share - 0.6) / 0.6)
+            + (abs(secondary_share - 0.3) / 0.3)
+            + (abs(accent_share - 0.1) / 0.1)
+        ) / 3
+
+        if len([share for share in family_shares[:4] if share >= 0.08]) >= 4:
+            imbalance += 0.18
+
+        return round(max(0.0, 1.0 - imbalance), 4)
+
     def _score_preferred_colors_fit(self, profile, request_context):
         preferred_colors = []
         for value in self._split_color_values(request_context.get("preferred_colors")):
@@ -1362,6 +1961,7 @@ class RecommendationEngine:
         base_palette_score = self._score_neutral_base_scheme(profile)
         scheme = self._select_best_color_scheme(profile)
         complexity_score = self._score_color_complexity(profile)
+        accent_balance_score = self._score_color_accent_balance(profile)
         preferred_colors_score = self._score_preferred_colors_fit(
             profile,
             request_context,
@@ -1376,10 +1976,11 @@ class RecommendationEngine:
         shoes_accessories_score = round((shoes_score + accessory_score) / 2, 4)
 
         total_score = (
-            (base_palette_score * 0.30)
-            + (scheme["score"] * 0.30)
+            (base_palette_score * 0.25)
+            + (scheme["score"] * 0.25)
             + (complexity_score * 0.15)
-            + (preferred_colors_score * 0.15)
+            + (accent_balance_score * 0.15)
+            + (preferred_colors_score * 0.1)
             + (shoes_accessories_score * 0.10)
         )
 
@@ -1410,6 +2011,7 @@ class RecommendationEngine:
                 "base_palette_score": round(base_palette_score, 4),
                 "scheme_score": round(scheme["score"], 4),
                 "color_complexity_score": round(complexity_score, 4),
+                "accent_balance_score": round(accent_balance_score, 4),
                 "preferred_colors_score": round(preferred_colors_score, 4),
                 "shoes_accessories_score": round(shoes_accessories_score, 4),
             },
@@ -1425,6 +2027,13 @@ class RecommendationEngine:
         return "summer"
 
     def _estimate_item_warmth(self, item):
+        explicit_insulation = getattr(item, "insulation_rating", None)
+        if explicit_insulation is not None:
+            try:
+                explicit_insulation = float(explicit_insulation)
+            except (TypeError, ValueError):
+                explicit_insulation = None
+
         base_warmth = {
             "top": 1.2,
             "bottom": 1.3,
@@ -1432,6 +2041,9 @@ class RecommendationEngine:
             "outerwear": 2.8,
             "accessory": 0.3,
         }.get(item.category, 0.5)
+
+        if explicit_insulation is not None:
+            return max(0.1, explicit_insulation)
 
         item_subcategory = self._normalize_token(item.subcategory)
         item_season = self._normalize_token(item.season)
@@ -1629,9 +2241,14 @@ class RecommendationEngine:
                 subcategory,
                 self._normalize_token(item.material),
                 self._normalize_token(item.formality),
+                self._normalize_token(getattr(item, "fit", None)),
+                self._normalize_token(getattr(item, "layer_level", None)),
+                "waterproof" if getattr(item, "waterproof", False) else None,
+                "windproof" if getattr(item, "windproof", False) else None,
                 *colors,
                 *self._normalize_tokens(item.styles or []),
             }
+            attributes.discard(None)
 
             if normalized_constraint in {"no_heels", "avoid_heels"}:
                 if category == "shoes" and subcategory in {"heels", "high_heels", "pumps"}:
@@ -1665,9 +2282,14 @@ class RecommendationEngine:
                 self._normalize_token(item.subcategory),
                 self._normalize_token(item.material),
                 self._normalize_token(item.formality),
+                self._normalize_token(getattr(item, "fit", None)),
+                self._normalize_token(getattr(item, "layer_level", None)),
+                "waterproof" if getattr(item, "waterproof", False) else None,
+                "windproof" if getattr(item, "windproof", False) else None,
                 *self._normalize_tokens(item.colors or []),
                 *self._normalize_tokens(item.styles or []),
             }
+            tokens.discard(None)
             if normalized_attribute in tokens:
                 return True
         return False

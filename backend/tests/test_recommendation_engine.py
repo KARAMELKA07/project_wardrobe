@@ -20,6 +20,11 @@ class DummyItem:
     season: str
     formality: str
     material: str
+    fit: str | None = None
+    layer_level: str | None = None
+    insulation_rating: float = 0.0
+    waterproof: bool = False
+    windproof: bool = False
     image_url: str = "/uploads/placeholders/top.svg"
 
     def to_dict(self):
@@ -32,12 +37,27 @@ class DummyItem:
             "styles": self.styles,
             "season": self.season,
             "formality": self.formality,
+            "fit": self.fit,
+            "layer_level": self.layer_level,
+            "insulation_rating": self.insulation_rating,
+            "waterproof": self.waterproof,
+            "windproof": self.windproof,
             "material": self.material,
             "image_url": self.image_url,
         }
 
 
-def build_item(item_id, title, category, subcategory, colors, styles, season, formality):
+def build_item(
+    item_id,
+    title,
+    category,
+    subcategory,
+    colors,
+    styles,
+    season,
+    formality,
+    **overrides,
+):
     return DummyItem(
         id=item_id,
         title=title,
@@ -47,8 +67,14 @@ def build_item(item_id, title, category, subcategory, colors, styles, season, fo
         styles=styles,
         season=season,
         formality=formality,
-        material="cotton",
+        material=overrides.pop("material", "cotton"),
+        fit=overrides.pop("fit", None),
+        layer_level=overrides.pop("layer_level", None),
+        insulation_rating=overrides.pop("insulation_rating", 0.0),
+        waterproof=overrides.pop("waterproof", False),
+        windproof=overrides.pop("windproof", False),
         image_url=f"/uploads/placeholders/{category}.svg",
+        **overrides,
     )
 
 
@@ -162,6 +188,90 @@ class RecommendationEngineTests(unittest.TestCase):
             roles = {entry["role"] for entry in candidate}
             self.assertNotEqual(shoes.subcategory, "loafers")
             self.assertIn("outerwear", roles)
+
+    def test_generate_candidate_outfits_adds_accessory_variants(self):
+        items = [
+            build_item(1, "White tee", "top", "t-shirt", ["white"], ["casual"], "summer", "casual"),
+            build_item(2, "Blue jeans", "bottom", "jeans", ["blue"], ["casual"], "all-season", "casual"),
+            build_item(3, "White sneakers", "shoes", "sneakers", ["white"], ["casual"], "spring", "casual"),
+            build_item(4, "Black bag", "accessory", "bag", ["black"], ["minimal"], "all-season", "smart"),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, self.request_context)
+
+        self.assertTrue(any("accessory" in {entry["role"] for entry in candidate} for candidate in candidates))
+        self.assertTrue(any("accessory" not in {entry["role"] for entry in candidate} for candidate in candidates))
+
+    def test_generate_candidate_outfits_filters_hoodie_for_office_event(self):
+        office_request_context = {
+            **self.request_context,
+            "event_type": "office",
+            "preferred_style": "classic",
+        }
+        items = [
+            build_item(1, "Gray hoodie", "top", "hoodie", ["gray"], ["sport"], "spring", "casual"),
+            build_item(2, "Blue shirt", "top", "shirt", ["blue"], ["classic"], "spring", "smart"),
+            build_item(3, "Black trousers", "bottom", "trousers", ["black"], ["classic"], "spring", "smart"),
+            build_item(4, "Black loafers", "shoes", "loafers", ["black"], ["classic"], "spring", "smart"),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, office_request_context)
+
+        self.assertTrue(candidates)
+        for candidate in candidates:
+            top_item = next(entry["item"] for entry in candidate if entry["role"] == "top")
+            self.assertNotEqual(top_item.subcategory, "hoodie")
+
+    def test_weather_score_uses_explicit_protection_flags(self):
+        rainy_context = {
+            **self.request_context,
+            "weather_condition": "rain",
+            "temperature": 9,
+        }
+        protected_candidate = self.make_candidate(
+            ("top", build_item(1, "White shirt", "top", "shirt", ["white"], ["classic"], "spring", "smart")),
+            ("bottom", build_item(2, "Black trousers", "bottom", "trousers", ["black"], ["classic"], "spring", "smart")),
+            ("shoes", build_item(3, "Black boots", "shoes", "boots", ["black"], ["classic"], "autumn", "smart")),
+            ("outerwear", build_item(4, "Gray blazer", "outerwear", "blazer", ["gray"], ["classic"], "spring", "smart", waterproof=True, windproof=True)),
+        )
+        unprotected_candidate = self.make_candidate(
+            ("top", build_item(5, "White shirt", "top", "shirt", ["white"], ["classic"], "spring", "smart")),
+            ("bottom", build_item(6, "Black trousers", "bottom", "trousers", ["black"], ["classic"], "spring", "smart")),
+            ("shoes", build_item(7, "Black boots", "shoes", "boots", ["black"], ["classic"], "autumn", "smart")),
+            ("outerwear", build_item(8, "Gray blazer", "outerwear", "blazer", ["gray"], ["classic"], "spring", "smart")),
+        )
+
+        protected_score = self.engine.score_weather_condition_match(protected_candidate, rainy_context)
+        unprotected_score = self.engine.score_weather_condition_match(unprotected_candidate, rainy_context)
+
+        self.assertGreater(protected_score, unprotected_score)
+        self.assertGreaterEqual(protected_score, 0.85)
+
+    def test_temperature_score_uses_explicit_insulation_rating(self):
+        winter_context = {
+            **self.request_context,
+            "temperature": -10,
+            "weather_condition": "snow",
+            "season": "winter",
+        }
+        warm_candidate = self.make_candidate(
+            ("top", build_item(1, "Warm knit", "top", "sweater", ["gray"], ["casual"], "winter", "casual", insulation_rating=2.1, layer_level="mid")),
+            ("bottom", build_item(2, "Warm trousers", "bottom", "trousers", ["black"], ["classic"], "winter", "smart", insulation_rating=1.6)),
+            ("shoes", build_item(3, "Winter boots", "shoes", "winter_boots", ["black"], ["casual"], "winter", "casual", insulation_rating=2.2)),
+            ("outerwear", build_item(4, "Parka", "outerwear", "parka", ["olive"], ["casual"], "winter", "casual", insulation_rating=2.8, layer_level="outer")),
+        )
+        cold_candidate = self.make_candidate(
+            ("top", build_item(5, "Thin knit", "top", "sweater", ["gray"], ["casual"], "winter", "casual", insulation_rating=0.7, layer_level="base")),
+            ("bottom", build_item(6, "Light trousers", "bottom", "trousers", ["black"], ["classic"], "winter", "smart", insulation_rating=0.5)),
+            ("shoes", build_item(7, "Winter boots", "shoes", "winter_boots", ["black"], ["casual"], "winter", "casual", insulation_rating=0.8)),
+            ("outerwear", build_item(8, "Parka", "outerwear", "parka", ["olive"], ["casual"], "winter", "casual", insulation_rating=1.0, layer_level="outer")),
+        )
+
+        warm_score = self.engine.score_temperature_match(warm_candidate, winter_context)
+        cold_score = self.engine.score_temperature_match(cold_candidate, winter_context)
+
+        self.assertGreater(warm_score, cold_score)
+        self.assertGreaterEqual(warm_score, 0.85)
 
     def test_color_harmony_scores_all_neutral_outfit_high(self):
         candidate = self.make_candidate(

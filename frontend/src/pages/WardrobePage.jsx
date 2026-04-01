@@ -8,6 +8,8 @@ import {
 } from "../api/client";
 import {
   getColorLabel,
+  getFitLabel,
+  getLayerLevelLabel,
   getStyleLabel,
   getSubcategoryLabel,
 } from "../data/clothingOptions";
@@ -114,6 +116,14 @@ export default function WardrobePage() {
               </p>
               <p className="muted-text">
                 Формальность: {translateFormality(item.formality)}
+              </p>
+              <p className="muted-text">
+                Посадка: {getFitLabel(item.fit) || "не указана"} | Слой:{" "}
+                {getLayerLevelLabel(item.layer_level) || "не указан"}
+              </p>
+              <p className="muted-text">
+                Утепление: {item.insulation_rating ?? 0} | Дождь:{" "}
+                {item.waterproof ? "да" : "нет"} | Ветер: {item.windproof ? "да" : "нет"}
               </p>
 
               <div className="card-actions">

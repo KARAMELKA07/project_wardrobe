@@ -14,6 +14,11 @@ class ClothingItem(db.Model):
     styles = db.Column(db.JSON, nullable=False, default=list)
     season = db.Column(db.String(50), nullable=False, default="all-season")
     formality = db.Column(db.String(50), nullable=False, default="casual")
+    fit = db.Column(db.String(50), nullable=True)
+    layer_level = db.Column(db.String(50), nullable=True)
+    insulation_rating = db.Column(db.Float, nullable=False, default=0.0)
+    waterproof = db.Column(db.Boolean, nullable=False, default=False)
+    windproof = db.Column(db.Boolean, nullable=False, default=False)
     material = db.Column(db.String(80), nullable=True)
 
     user = db.relationship("User", back_populates="clothing_items")
@@ -35,5 +40,10 @@ class ClothingItem(db.Model):
             "styles": self.styles or [],
             "season": self.season,
             "formality": self.formality,
+            "fit": self.fit,
+            "layer_level": self.layer_level,
+            "insulation_rating": self.insulation_rating,
+            "waterproof": self.waterproof,
+            "windproof": self.windproof,
             "material": self.material,
         }

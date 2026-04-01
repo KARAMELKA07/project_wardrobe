@@ -29,6 +29,20 @@ export const FORMALITY_LABELS = {
   formal: "Формальный",
 };
 
+export const FIT_LABELS = {
+  fitted: "Приталенная",
+  balanced: "Сбалансированная",
+  loose: "Свободная",
+  oversized: "Оверсайз",
+};
+
+export const LAYER_LEVEL_LABELS = {
+  base: "Базовый слой",
+  mid: "Утепляющий слой",
+  outer: "Верхний слой",
+  support: "Поддерживающий аксессуар",
+};
+
 export const EVENT_LABELS = {
   office: "Офис",
   casual: "Повседневный",
@@ -88,6 +102,16 @@ export function translateSeason(value) {
 
 export function translateFormality(value) {
   return translate(FORMALITY_LABELS, value);
+}
+
+
+export function translateFit(value) {
+  return translate(FIT_LABELS, value);
+}
+
+
+export function translateLayerLevel(value) {
+  return translate(LAYER_LEVEL_LABELS, value);
 }
 
 

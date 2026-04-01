@@ -26,6 +26,16 @@ export function saveOutfit(token, payload) {
 }
 
 
+export function uploadOutfitPhoto(token, outfitId, formData) {
+  return apiFetch(`/outfits/${outfitId}/photo`, {
+    method: "POST",
+    token,
+    body: formData,
+    isFormData: true,
+  });
+}
+
+
 export function sendOutfitFeedback(token, outfitId, reaction) {
   return apiFetch(`/outfits/${outfitId}/feedback`, {
     method: "POST",

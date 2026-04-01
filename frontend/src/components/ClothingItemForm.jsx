@@ -4,13 +4,22 @@ import { resolveAssetUrl } from "../api/client";
 import {
   CATEGORY_OPTIONS,
   COLOR_OPTIONS,
+  FIT_OPTIONS,
+  INSULATION_OPTIONS,
+  LAYER_LEVEL_OPTIONS,
   STYLE_OPTIONS,
+  getDefaultFitValue,
+  getDefaultInsulationValue,
+  getDefaultLayerLevelValue,
+  getDefaultProtectionFlags,
   getSubcategoryLabel,
   getSubcategoryOptions,
   normalizeCatalogValue,
 } from "../data/clothingOptions";
 import {
+  translateLayerLevel,
   translateFormality,
+  translateFit,
   translateSeason,
 } from "../utils/i18n";
 
@@ -23,8 +32,29 @@ const EMPTY_FORM = {
   styles: [],
   season: "all-season",
   formality: "casual",
+  fit: "balanced",
+  layer_level: "base",
+  insulation_rating: "0.6",
+  waterproof: false,
+  windproof: false,
   image_url: "",
 };
+
+
+function buildDefaultMetadata(category, subcategory) {
+  const fit = getDefaultFitValue(subcategory);
+  const layerLevel = getDefaultLayerLevelValue(subcategory, category);
+  const insulationRating = getDefaultInsulationValue(subcategory);
+  const protectionFlags = getDefaultProtectionFlags(subcategory);
+
+  return {
+    fit,
+    layer_level: layerLevel,
+    insulation_rating: insulationRating,
+    waterproof: protectionFlags.waterproof,
+    windproof: protectionFlags.windproof,
+  };
+}
 
 
 function mapInitialValues(initialValues) {
@@ -32,14 +62,25 @@ function mapInitialValues(initialValues) {
     return { ...EMPTY_FORM };
   }
 
+  const category = normalizeCatalogValue(initialValues.category) || "top";
+  const subcategory = normalizeCatalogValue(initialValues.subcategory);
+  const defaultMetadata = buildDefaultMetadata(category, subcategory);
+
   return {
     title: initialValues.title || "",
-    category: normalizeCatalogValue(initialValues.category) || "top",
-    subcategory: normalizeCatalogValue(initialValues.subcategory),
+    category,
+    subcategory,
     colors: (initialValues.colors || []).map(normalizeCatalogValue),
     styles: (initialValues.styles || []).map(normalizeCatalogValue),
     season: initialValues.season || "all-season",
     formality: initialValues.formality || "casual",
+    fit: initialValues.fit || defaultMetadata.fit,
+    layer_level: initialValues.layer_level || defaultMetadata.layer_level,
+    insulation_rating: String(
+      initialValues.insulation_rating ?? defaultMetadata.insulation_rating,
+    ),
+    waterproof: Boolean(initialValues.waterproof ?? defaultMetadata.waterproof),
+    windproof: Boolean(initialValues.windproof ?? defaultMetadata.windproof),
     image_url: initialValues.image_url || "",
   };
 }
@@ -71,7 +112,7 @@ export default function ClothingItemForm({
   const availableSubcategories = getSubcategoryOptions(formValues.category);
 
   function handleChange(event) {
-    const { name, value } = event.target;
+    const { name, type, value, checked } = event.target;
 
     if (name === "category") {
       const normalizedCategory = normalizeCatalogValue(value);
@@ -85,13 +126,31 @@ export default function ClothingItemForm({
         ...currentValues,
         category: normalizedCategory,
         subcategory: hasCurrentSubcategory ? currentSubcategory : "",
+        ...(hasCurrentSubcategory
+          ? buildDefaultMetadata(normalizedCategory, currentSubcategory)
+          : buildDefaultMetadata(normalizedCategory, "")),
+      }));
+      return;
+    }
+
+    if (name === "subcategory") {
+      const normalizedSubcategory = normalizeCatalogValue(value);
+      const defaultMetadata = buildDefaultMetadata(
+        formValues.category,
+        normalizedSubcategory,
+      );
+
+      setFormValues((currentValues) => ({
+        ...currentValues,
+        subcategory: normalizedSubcategory,
+        ...defaultMetadata,
       }));
       return;
     }
 
     setFormValues((currentValues) => ({
       ...currentValues,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   }
 
@@ -115,6 +174,11 @@ export default function ClothingItemForm({
     formData.append("styles", JSON.stringify(formValues.styles));
     formData.append("season", formValues.season);
     formData.append("formality", formValues.formality);
+    formData.append("fit", formValues.fit);
+    formData.append("layer_level", formValues.layer_level);
+    formData.append("insulation_rating", formValues.insulation_rating);
+    formData.append("waterproof", String(formValues.waterproof));
+    formData.append("windproof", String(formValues.windproof));
     formData.append("material", "");
 
     if (formValues.image_url) {
@@ -218,6 +282,85 @@ export default function ClothingItemForm({
           </select>
         </label>
 
+        <label>
+          Посадка и силуэт
+          <select
+            className="input"
+            name="fit"
+            value={formValues.fit}
+            onChange={handleChange}
+          >
+            {FIT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Роль в слоистости
+          <select
+            className="input"
+            name="layer_level"
+            value={formValues.layer_level}
+            onChange={handleChange}
+          >
+            {LAYER_LEVEL_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Уровень утепления
+          <select
+            className="input"
+            name="insulation_rating"
+            value={formValues.insulation_rating}
+            onChange={handleChange}
+          >
+            {INSULATION_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="field-block">
+          <div className="field-heading">
+            <span className="field-label">Защитные свойства</span>
+            <span className="field-helper">
+              Отметьте, если вещь реально защищает от дождя или ветра.
+            </span>
+          </div>
+          <div className="chip-grid">
+            <label className={formValues.waterproof ? "chip-button is-selected" : "chip-button"}>
+              <input
+                type="checkbox"
+                name="waterproof"
+                checked={formValues.waterproof}
+                onChange={handleChange}
+                hidden
+              />
+              Защита от дождя
+            </label>
+            <label className={formValues.windproof ? "chip-button is-selected" : "chip-button"}>
+              <input
+                type="checkbox"
+                name="windproof"
+                checked={formValues.windproof}
+                onChange={handleChange}
+                hidden
+              />
+              Защита от ветра
+            </label>
+          </div>
+        </div>
+
         <div className="field-block full-width">
           <div className="field-heading">
             <span className="field-label">Цвета</span>
@@ -288,9 +431,10 @@ export default function ClothingItemForm({
             className="inline-thumbnail"
           />
           <p className="muted-text">
-            Текущее изображение сохранится, если не загружать новое. Подкатегория:
-            {" "}
-            {getSubcategoryLabel(formValues.subcategory)}
+            Текущее изображение сохранится, если не загружать новое. Подкатегория:{" "}
+            {getSubcategoryLabel(formValues.subcategory)}. Посадка:{" "}
+            {translateFit(formValues.fit)}. Слой:{" "}
+            {translateLayerLevel(formValues.layer_level)}.
           </p>
         </div>
       ) : null}

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from ..extensions import db
@@ -13,6 +13,7 @@ from ..services.weather_service import MockWeatherService
 from ..utils.auth import current_user_or_404
 from ..utils.errors import ApiError
 from ..utils.request import get_request_payload
+from ..utils.storage import remove_local_image, save_image
 
 
 outfits_bp = Blueprint("outfits", __name__, url_prefix="/api/outfits")
@@ -58,6 +59,9 @@ def save_outfit():
         weather_context=payload["weather_context"],
         score=payload["score"],
         explanation=payload["explanation"],
+        feature_scores=payload["feature_scores"],
+        reasons=payload["reasons"],
+        styled_photo_url=payload["styled_photo_url"],
     )
     db.session.add(outfit)
     db.session.flush()
@@ -82,6 +86,28 @@ def save_outfit():
 
     saved_outfit = get_owned_outfit_or_404(user.id, outfit.id)
     return jsonify({"outfit": saved_outfit.to_dict()}), 201
+
+
+@outfits_bp.post("/<int:outfit_id>/photo")
+@jwt_required()
+def upload_outfit_photo(outfit_id):
+    user = current_user_or_404()
+    outfit = get_owned_outfit_or_404(user.id, outfit_id)
+
+    if "image" not in request.files:
+        raise ApiError("Необходимо загрузить изображение.", 400)
+
+    new_image_url = save_image(
+        request.files["image"],
+        current_app.config["UPLOAD_FOLDER"],
+        current_app.config["ALLOWED_IMAGE_EXTENSIONS"],
+    )
+    if outfit.styled_photo_url:
+        remove_local_image(outfit.styled_photo_url, current_app.config["UPLOAD_FOLDER"])
+
+    outfit.styled_photo_url = new_image_url
+    db.session.commit()
+    return jsonify({"outfit": outfit.to_dict()})
 
 
 @outfits_bp.get("/<int:outfit_id>")

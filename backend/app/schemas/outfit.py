@@ -48,6 +48,9 @@ def validate_save_outfit_payload(payload):
     name = (payload.get("name") or "").strip() or "Сохраненный образ"
     explanation = (payload.get("explanation") or "").strip() or None
     weather_context = payload.get("weather_context") or {}
+    feature_scores = payload.get("feature_scores") or {}
+    reasons = payload.get("reasons") or []
+    styled_photo_url = (payload.get("styled_photo_url") or "").strip() or None
     item_entries = payload.get("items") or []
 
     if not event_type:
@@ -81,6 +84,12 @@ def validate_save_outfit_payload(payload):
 
     if not isinstance(weather_context, dict):
         raise ApiError("Поле weather_context должно быть объектом.", 400)
+    if not isinstance(feature_scores, dict):
+        raise ApiError("Поле feature_scores должно быть объектом.", 400)
+    if not isinstance(reasons, list):
+        raise ApiError("Поле reasons должно быть списком.", 400)
+
+    cleaned_reasons = [str(reason).strip() for reason in reasons if str(reason).strip()]
 
     return {
         "name": name,
@@ -88,6 +97,9 @@ def validate_save_outfit_payload(payload):
         "weather_context": weather_context,
         "score": score,
         "explanation": explanation,
+        "feature_scores": feature_scores,
+        "reasons": cleaned_reasons,
+        "styled_photo_url": styled_photo_url,
         "items": cleaned_items,
     }
 

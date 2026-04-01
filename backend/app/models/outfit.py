@@ -11,6 +11,11 @@ class Outfit(db.Model):
     weather_context = db.Column(db.JSON, nullable=True, default=dict)
     score = db.Column(db.Float, nullable=False, default=0.0)
     explanation = db.Column(db.Text, nullable=True)
+    feature_scores = db.Column(db.JSON, nullable=True, default=dict)
+    reasons = db.Column(db.JSON, nullable=True, default=list)
+    # Keep the Python attribute name stable while staying compatible with
+    # databases where the column was previously created as `user_photo_url`.
+    styled_photo_url = db.Column("user_photo_url", db.String(500), nullable=True)
 
     user = db.relationship("User", back_populates="outfits")
     items = db.relationship(
@@ -33,6 +38,9 @@ class Outfit(db.Model):
             "weather_context": self.weather_context or {},
             "score": round(self.score or 0.0, 4),
             "explanation": self.explanation,
+            "feature_scores": self.feature_scores or {},
+            "reasons": self.reasons or [],
+            "styled_photo_url": self.styled_photo_url,
             "items": [outfit_item.to_dict() for outfit_item in self.items],
         }
 

@@ -1,15 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { fetchItems } from "../api/itemsApi";
-import { generateOutfits, saveOutfit } from "../api/outfitsApi";
+import { generateOutfits, saveOutfit, uploadOutfitPhoto } from "../api/outfitsApi";
 import OutfitCard from "../components/OutfitCard";
 import useAuth from "../hooks/useAuth";
-import {
-  translateCategory,
-  translateSeason,
-  translateWeather,
-} from "../utils/i18n";
-
+import { translateCategory, translateSeason, translateWeather } from "../utils/i18n";
 
 const INITIAL_FORM = {
   event_type: "office",
@@ -21,7 +16,6 @@ const INITIAL_FORM = {
   constraints: "",
 };
 
-
 export default function OutfitGeneratorPage() {
   const { token } = useAuth();
   const [items, setItems] = useState([]);
@@ -30,15 +24,18 @@ export default function OutfitGeneratorPage() {
   const [weather, setWeather] = useState(null);
   const [savedKeys, setSavedKeys] = useState({});
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [resultMessage, setResultMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     async function loadItems() {
       try {
         const response = await fetchItems(token);
-        setItems(response.items);
+        setItems(response.items || []);
       } catch (requestError) {
         setError(requestError.message);
       }
@@ -46,6 +43,14 @@ export default function OutfitGeneratorPage() {
 
     loadItems();
   }, [token]);
+
+  const activeOutfit = useMemo(() => {
+    if (!generatedOutfits.length) {
+      return null;
+    }
+
+    return generatedOutfits[activeIndex] || generatedOutfits[0];
+  }, [activeIndex, generatedOutfits]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -56,6 +61,7 @@ export default function OutfitGeneratorPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setResultMessage("");
 
     try {
       const payload = {
@@ -64,11 +70,13 @@ export default function OutfitGeneratorPage() {
         temperature: formValues.temperature || null,
       };
       const response = await generateOutfits(token, payload);
-      setGeneratedOutfits(response.outfits);
-      setWeather(response.weather);
+      setGeneratedOutfits(response.outfits || []);
+      setWeather(response.weather || null);
       setSavedKeys({});
       setHasGenerated(true);
       setResultMessage(response.message || "");
+      setActiveIndex(0);
+      setIsModalOpen(Boolean(response.outfits?.length));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -77,22 +85,72 @@ export default function OutfitGeneratorPage() {
   }
 
   async function handleSave(outfit) {
+    setError("");
+
     try {
-      await saveOutfit(token, {
+      const response = await saveOutfit(token, {
         name: outfit.name,
         event_type: outfit.event_type,
         weather_context: outfit.weather_context,
         score: outfit.score,
         explanation: outfit.explanation,
+        feature_scores: outfit.feature_scores || {},
+        reasons: outfit.reasons || [],
         items: outfit.items.map((entry) => ({
           clothing_item_id: entry.clothing_item_id || entry.id,
           role: entry.role,
         })),
       });
-      setSavedKeys((currentKeys) => ({ ...currentKeys, [outfit.name]: true }));
+
+      const savedOutfit = response.outfit;
+      setGeneratedOutfits((currentOutfits) =>
+        currentOutfits.map((entry, index) =>
+          index === activeIndex ? savedOutfit : entry,
+        ),
+      );
+      setSavedKeys((currentKeys) => ({
+        ...currentKeys,
+        [savedOutfit.id || savedOutfit.name]: true,
+      }));
+      setResultMessage("Образ сохранён в избранное. Теперь можно добавить своё фото.");
     } catch (requestError) {
       setError(requestError.message);
     }
+  }
+
+  async function handlePhotoUpload(outfitId, file) {
+    setUploadingPhoto(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const response = await uploadOutfitPhoto(token, outfitId, formData);
+      const updatedOutfit = response.outfit;
+
+      setGeneratedOutfits((currentOutfits) =>
+        currentOutfits.map((entry) =>
+          entry.id === outfitId ? updatedOutfit : entry,
+        ),
+      );
+      setResultMessage("Фото добавлено. Доска образа обновлена.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
+  function showPreviousOutfit() {
+    setActiveIndex((currentIndex) =>
+      currentIndex === 0 ? generatedOutfits.length - 1 : currentIndex - 1,
+    );
+  }
+
+  function showNextOutfit() {
+    setActiveIndex((currentIndex) =>
+      currentIndex === generatedOutfits.length - 1 ? 0 : currentIndex + 1,
+    );
   }
 
   return (
@@ -100,7 +158,10 @@ export default function OutfitGeneratorPage() {
       <div className="section-heading">
         <div>
           <p className="eyebrow">Подбор образов</p>
-          <h1>Создать подборку образов</h1>
+          <h1>Соберите подборку образов</h1>
+          <p className="muted-text">
+            После генерации доска откроется во всплывающем окне. Там можно листать варианты и сохранять лучший.
+          </p>
         </div>
       </div>
 
@@ -211,35 +272,55 @@ export default function OutfitGeneratorPage() {
       </form>
 
       {error ? <p className="error-text">{error}</p> : null}
+      {resultMessage ? <p className="muted-text">{resultMessage}</p> : null}
 
       {weather ? (
         <div className="card weather-card">
           <p className="eyebrow">Погодный контекст</p>
           <h3>
-            {weather.temperature} °C | {translateWeather(weather.weather_condition)}
+            {weather.temperature}°C • {translateWeather(weather.weather_condition)}
           </h3>
           <p className="muted-text">
             {weather.city || "Тестовый город"}
-            {weather.season ? ` | ${translateSeason(weather.season)}` : ""}
+            {weather.season ? ` • ${translateSeason(weather.season)}` : ""}
           </p>
         </div>
       ) : null}
 
-      <div className="outfit-grid">
-        {generatedOutfits.map((outfit) => (
-          <OutfitCard
-            key={`${outfit.name}-${outfit.score}`}
-            outfit={outfit}
-            onSave={handleSave}
-            isSaved={Boolean(savedKeys[outfit.name])}
-          />
-        ))}
-      </div>
+      {!loading && hasGenerated && generatedOutfits.length > 0 && !isModalOpen ? (
+        <div className="card centered-card">
+          <h3>Доски образов готовы</h3>
+          <p className="muted-text">
+            Откройте модальное окно и пролистайте варианты стрелками.
+          </p>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => setIsModalOpen(true)}
+          >
+            Открыть доску образа
+          </button>
+        </div>
+      ) : null}
 
       {!loading && hasGenerated && generatedOutfits.length === 0 ? (
         <div className="card empty-state">
           {resultMessage || "Для выбранных параметров не найдено подходящих сочетаний."}
         </div>
+      ) : null}
+
+      {isModalOpen && activeOutfit ? (
+        <OutfitCard
+          outfit={activeOutfit}
+          onSave={handleSave}
+          isSaved={Boolean(savedKeys[activeOutfit.id || activeOutfit.name])}
+          onPhotoUpload={handlePhotoUpload}
+          isUploadingPhoto={uploadingPhoto}
+          boardBadge={`${activeIndex + 1}/${generatedOutfits.length}`}
+          onPrevious={showPreviousOutfit}
+          onNext={showNextOutfit}
+          onClose={() => setIsModalOpen(false)}
+        />
       ) : null}
     </section>
   );
