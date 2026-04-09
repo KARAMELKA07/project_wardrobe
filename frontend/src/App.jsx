@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import AddClothingItemPage from "./pages/AddClothingItemPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import ClothingItemDetailsPage from "./pages/ClothingItemDetailsPage";
 import DashboardPage from "./pages/DashboardPage";
 import EditClothingItemPage from "./pages/EditClothingItemPage";
 import LoginPage from "./pages/LoginPage";
@@ -42,6 +43,7 @@ function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/wardrobe" element={<WardrobePage />} />
               <Route path="/wardrobe/add" element={<AddClothingItemPage />} />
+              <Route path="/wardrobe/:itemId" element={<ClothingItemDetailsPage />} />
               <Route path="/wardrobe/:itemId/edit" element={<EditClothingItemPage />} />
               <Route path="/generate" element={<OutfitGeneratorPage />} />
               <Route path="/outfits" element={<SavedOutfitsPage />} />

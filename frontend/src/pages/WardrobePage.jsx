@@ -1,27 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { deleteItem, fetchItems } from "../api/itemsApi";
 import {
   getCategoryPlaceholderUrl,
   resolveItemImageUrl,
 } from "../api/client";
-import {
-  getColorLabel,
-  getFitLabel,
-  getLayerLevelLabel,
-  getStyleLabel,
-  getSubcategoryLabel,
-} from "../data/clothingOptions";
 import useAuth from "../hooks/useAuth";
-import {
-  translateCategory,
-  translateFormality,
-  translateSeason,
-} from "../utils/i18n";
-
 
 export default function WardrobePage() {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
@@ -55,6 +43,17 @@ export default function WardrobePage() {
     }
   }
 
+  function handleOpenItem(itemId) {
+    navigate(`/wardrobe/${itemId}`);
+  }
+
+  function handleCardKeyDown(event, itemId) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleOpenItem(itemId);
+    }
+  }
+
   return (
     <section className="page-section">
       <div className="section-heading">
@@ -78,7 +77,14 @@ export default function WardrobePage() {
 
       <div className="item-grid">
         {items.map((item) => (
-          <article key={item.id} className="card item-card">
+          <article
+            key={item.id}
+            className="card item-card item-card-compact item-card-clickable"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleOpenItem(item.id)}
+            onKeyDown={(event) => handleCardKeyDown(event, item.id)}
+          >
             <img
               src={resolveItemImageUrl(item)}
               alt={item.title}
@@ -89,54 +95,31 @@ export default function WardrobePage() {
             />
 
             <div className="item-body">
-              <div className="item-header">
-                <div>
-                  <h3>{item.title}</h3>
-                  <p className="muted-text">
-                    {translateCategory(item.category)}
-                    {item.subcategory ? ` | ${getSubcategoryLabel(item.subcategory)}` : ""}
-                  </p>
+              <div className="item-compact-footer">
+                <h3 className="item-compact-title">{item.title}</h3>
+                <div className="item-icon-actions">
+                  <Link
+                    to={`/wardrobe/${item.id}/edit`}
+                    className="item-icon-button"
+                    aria-label="Редактировать вещь"
+                    title="Редактировать"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    ✎
+                  </Link>
+                  <button
+                    type="button"
+                    className="item-icon-button item-icon-button-danger"
+                    aria-label="Удалить вещь"
+                    title="Удалить"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDelete(item.id);
+                    }}
+                  >
+                    🗑
+                  </button>
                 </div>
-                <span className="badge">{translateSeason(item.season)}</span>
-              </div>
-
-              <p className="muted-text">
-                Цвета:
-                {" "}
-                {item.colors?.length
-                  ? item.colors.map(getColorLabel).join(", ")
-                  : "не указаны"}
-              </p>
-              <p className="muted-text">
-                Стили:
-                {" "}
-                {item.styles?.length
-                  ? item.styles.map(getStyleLabel).join(", ")
-                  : "не указаны"}
-              </p>
-              <p className="muted-text">
-                Формальность: {translateFormality(item.formality)}
-              </p>
-              <p className="muted-text">
-                Посадка: {getFitLabel(item.fit) || "не указана"} | Слой:{" "}
-                {getLayerLevelLabel(item.layer_level) || "не указан"}
-              </p>
-              <p className="muted-text">
-                Утепление: {item.insulation_rating ?? 0} | Дождь:{" "}
-                {item.waterproof ? "да" : "нет"} | Ветер: {item.windproof ? "да" : "нет"}
-              </p>
-
-              <div className="card-actions">
-                <Link to={`/wardrobe/${item.id}/edit`} className="secondary-button">
-                  Редактировать
-                </Link>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => handleDelete(item.id)}
-                >
-                  Удалить
-                </button>
               </div>
             </div>
           </article>

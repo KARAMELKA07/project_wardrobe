@@ -59,7 +59,7 @@ function renderBoardCard(entry, slotName) {
   return (
     <Link
       key={`${slotName}-${itemId || clothingItem.title || "item"}`}
-      to={itemId ? `/wardrobe/${itemId}/edit` : "/wardrobe"}
+      to={itemId ? `/wardrobe/${itemId}` : "/wardrobe"}
       className="board-card"
     >
       <img
