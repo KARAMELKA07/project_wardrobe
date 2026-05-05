@@ -1,6 +1,11 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\backend",
+    "\\backend\\app",
+    "\\backend\\app\\models",
+    "\\backend\\app\\services",
+    "\\backend\\migrations"
   ],
   "PreviewInSolutionExplorer": false
 }
