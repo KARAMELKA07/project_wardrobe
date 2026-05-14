@@ -57,7 +57,7 @@ export default function DashboardPage() {
 
   return (
     <section className="page-section dashboard-page">
-      <div className="section-heading section-heading-stack">
+      <div className="section-heading section-heading-stack dashboard-heading">
         <div>
           <h1>Главная</h1>
         </div>
@@ -79,26 +79,26 @@ export default function DashboardPage() {
         <StatCard label="Покрыто стилей" value={styleCoverage} />
       </div>
 
-      <Link to="/generate" className="primary-button primary-button-wide">
+      <Link to="/generate" className="primary-button primary-button-wide dashboard-cta">
         Подобрать образ
       </Link>
 
-      <div className="summary-grid">
-        <article className="summary-card">
+      <div className="summary-grid dashboard-summary-grid">
+        <article className="summary-card dashboard-summary-card">
           <h3>По категориям</h3>
           <div className="summary-lines">
             {renderSummaryLines(analytics?.by_category, translateCategory)}
           </div>
         </article>
 
-        <article className="summary-card">
+        <article className="summary-card dashboard-summary-card">
           <h3>По сезонам</h3>
           <div className="summary-lines">
             {renderSummaryLines(analytics?.by_season, translateSeason)}
           </div>
         </article>
 
-        <article className="summary-card">
+        <article className="summary-card dashboard-summary-card">
           <h3>По стилям</h3>
           <div className="summary-lines">{renderSummaryLines(analytics?.by_style)}</div>
         </article>

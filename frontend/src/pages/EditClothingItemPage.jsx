@@ -54,12 +54,20 @@ export default function EditClothingItemPage() {
 
   return (
     <section className="page-section">
+      <div className="section-heading section-heading-stack">
+        <div>
+          <h1>Обновить вещь</h1>
+        </div>
+      </div>
+
       {error ? <p className="error-text">{error}</p> : null}
+
       <ClothingItemForm
         initialValues={item}
         submitLabel="Обновить вещь"
         onSubmit={handleSubmit}
         loading={saving}
+        showHeading={false}
       />
     </section>
   );

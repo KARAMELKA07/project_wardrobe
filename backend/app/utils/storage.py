@@ -1,5 +1,6 @@
 import os
 import uuid
+from io import BytesIO
 from pathlib import Path
 
 from werkzeug.utils import secure_filename
@@ -20,6 +21,24 @@ def save_image(file_storage, upload_folder, allowed_extensions):
     stored_name = f"{uuid.uuid4().hex}.{extension}"
     file_path = Path(upload_folder) / stored_name
     file_storage.save(file_path)
+    return f"/uploads/{stored_name}"
+
+
+def save_image_bytes(image_bytes, upload_folder, extension="png"):
+    if not image_bytes:
+        raise ApiError("Не удалось сохранить обработанное изображение.", 500)
+
+    normalized_extension = str(extension or "png").lower().lstrip(".")
+    if normalized_extension not in {"png", "jpg", "jpeg", "webp"}:
+        normalized_extension = "png"
+
+    Path(upload_folder).mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid.uuid4().hex}.{normalized_extension}"
+    file_path = Path(upload_folder) / stored_name
+
+    with BytesIO(image_bytes) as image_stream:
+        file_path.write_bytes(image_stream.getvalue())
+
     return f"/uploads/{stored_name}"
 
 

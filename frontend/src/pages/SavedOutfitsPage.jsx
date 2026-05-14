@@ -135,10 +135,6 @@ export default function SavedOutfitsPage() {
               alt={outfit.name}
               className="saved-outfit-card-image"
             />
-            <div className="saved-outfit-card-footer">
-              <span>{outfit.name}</span>
-              <span className="saved-outfit-card-mark" />
-            </div>
           </button>
         ))}
       </div>

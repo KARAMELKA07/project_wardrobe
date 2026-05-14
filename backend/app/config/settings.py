@@ -37,3 +37,23 @@ class Config:
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(8 * 1024 * 1024)))
     UPLOAD_FOLDER = str(PROJECT_ROOT / os.getenv("UPLOAD_FOLDER", "uploads"))
     ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+    FASHION_AI_ENABLED = os.getenv("FASHION_AI_ENABLED", "true").lower() == "true"
+    FASHION_AI_MODEL_ID = os.getenv(
+        "FASHION_AI_MODEL_ID",
+        "openai/clip-vit-base-patch32",
+    )
+    DEEPFASHION_DATASET_DIR = os.getenv(
+        "DEEPFASHION_DATASET_DIR",
+        str(PROJECT_ROOT / "backend" / "Category and Attribute Prediction Benchmark"),
+    )
+    DEEPFASHION_CHECKPOINT_PATH = os.getenv(
+        "DEEPFASHION_CHECKPOINT_PATH",
+        str(PROJECT_ROOT / "backend" / "model_artifacts" / "deepfashion_classifier.pt"),
+    )
+    DEEPFASHION_METADATA_PATH = os.getenv(
+        "DEEPFASHION_METADATA_PATH",
+        str(PROJECT_ROOT / "backend" / "model_artifacts" / "deepfashion_classifier.metadata.json"),
+    )
+    DEEPFASHION_CONFIDENCE_THRESHOLD = float(
+        os.getenv("DEEPFASHION_CONFIDENCE_THRESHOLD", "0.55")
+    )

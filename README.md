@@ -12,6 +12,7 @@ The project does **not** use LLMs. Outfit generation is based on a transparent r
 - Database: MySQL
 - Frontend: React, JavaScript, Vite
 - Image storage: local `uploads/`
+- AI-assisted item digitization: `rembg` + local DeepFashion classifier + fallback zero-shot classifier + color extraction
 
 ## Repository structure
 
@@ -86,6 +87,12 @@ Update the values in `.env`:
 - `MYSQL_DB`
 - `FRONTEND_URL`
 - `VITE_API_URL`
+- `FASHION_AI_ENABLED`
+- `FASHION_AI_MODEL_ID`
+- `DEEPFASHION_DATASET_DIR`
+- `DEEPFASHION_CHECKPOINT_PATH`
+- `DEEPFASHION_METADATA_PATH`
+- `DEEPFASHION_CONFIDENCE_THRESHOLD`
 
 Note: the frontend is configured with `envDir: ".."`, so the root `.env` is used by both backend and frontend.
 
@@ -117,6 +124,8 @@ Backend default URL: [http://localhost:5000](http://localhost:5000)
 
 Health check: [http://localhost:5000/health](http://localhost:5000/health)
 
+Note: if a trained local DeepFashion checkpoint is not connected yet, on the first call to image analysis the fallback zero-shot model may be downloaded automatically from Hugging Face. This can take additional time depending on internet speed.
+
 ## Frontend setup
 
 ### 1. Install dependencies
@@ -138,6 +147,8 @@ Frontend default URL: [http://localhost:5173](http://localhost:5173)
 
 - JWT auth: register, login, current user
 - Digital wardrobe CRUD with local image upload
+- Automatic background removal for uploaded clothing images
+- AI-assisted recognition of clothing type with auto-fill suggestions
 - Outfit generation from user items
 - 10-feature recommendation architecture with weighted scoring
 - Explainability without LLMs
@@ -173,6 +184,7 @@ Each feature returns a value from `0` to `1`. The final outfit score is a weight
 - `PUT /api/items/<id>`
 - `DELETE /api/items/<id>`
 - `POST /api/items/upload`
+- `POST /api/items/analyze-image`
 - `POST /api/outfits/generate`
 - `POST /api/outfits`
 - `GET /api/outfits`
@@ -182,5 +194,66 @@ Each feature returns a value from `0` to `1`. The final outfit score is a weight
 ## Notes for further development
 
 - `MockWeatherService` can be replaced with a real weather API later.
+- The current image recognition module first tries to use a local DeepFashion-based checkpoint and then falls back to a zero-shot model if needed.
 - User preference editing can be added as a separate profile/settings module.
 - The scoring rules and weights are intentionally simple and readable for an MVP and diploma extension work.
+
+## DeepFashion-based item analysis
+
+When a user selects a clothing image in the add/edit form, the frontend sends the file to `POST /api/items/analyze-image`.
+
+The backend then:
+
+1. removes the background with `rembg`;
+2. tries to classify the item with a local DeepFashion-based model;
+3. if the local model is unavailable or gives low confidence, uses a zero-shot fallback classifier;
+4. extracts dominant colors from the processed image;
+5. returns suggestions for:
+   - `category`
+   - `subcategory`
+   - `colors`
+   - `styles`
+   - `season`
+   - `formality`
+   - `fit`
+   - `layer_level`
+   - `insulation_rating`
+   - `waterproof`
+   - `windproof`
+
+The user can review the suggested values before saving the item. If the "remove background on save" option is enabled, the saved image in `uploads/` will be the processed image with removed background.
+
+## Training a local DeepFashion classifier
+
+The project already contains a training pipeline for **DeepFashion Category and Attribute Prediction Benchmark**.
+
+Expected dataset directory:
+
+`backend/Category and Attribute Prediction Benchmark`
+
+Required contents:
+
+- `Anno_coarse/`
+- `Eval/`
+- `img/` or `Img/img/`
+
+Important: annotation files alone are not enough. You must also unpack `Clothes Images`.
+
+Run training from `backend/`:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\train_deepfashion_classifier.py
+```
+
+After training, the project will create:
+
+- `backend/model_artifacts/deepfashion_classifier.pt`
+- `backend/model_artifacts/deepfashion_classifier.metadata.json`
+
+Then restart the backend:
+
+```powershell
+.\.venv\Scripts\python.exe run.py
+```
+
+From this point, image analysis will use the local DeepFashion classifier first and only then fall back to the zero-shot model if needed.

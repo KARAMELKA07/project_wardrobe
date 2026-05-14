@@ -3,7 +3,8 @@ from flask_jwt_extended import jwt_required
 
 from ..extensions import db
 from ..models import ClothingItem
-from ..schemas.item import validate_clothing_item_payload
+from ..schemas.item import parse_bool_field, validate_clothing_item_payload
+from ..services.fashion_image_service import FashionImageService
 from ..utils.auth import current_user_or_404
 from ..utils.errors import ApiError
 from ..utils.request import get_request_payload
@@ -25,20 +26,20 @@ def get_owned_item_or_404(user_id, item_id):
 def create_item():
     user = current_user_or_404()
     payload = get_request_payload()
+    warnings = []
 
     if "image" in request.files:
-        payload["image_url"] = save_image(
-            request.files["image"],
-            current_app.config["UPLOAD_FOLDER"],
-            current_app.config["ALLOWED_IMAGE_EXTENSIONS"],
-        )
+        payload["image_url"], warnings = prepare_item_image(request.files["image"], payload)
 
     cleaned_payload = validate_clothing_item_payload(payload)
     item = ClothingItem(user_id=user.id, **cleaned_payload)
     db.session.add(item)
     db.session.commit()
 
-    return jsonify({"item": item.to_dict()}), 201
+    response_payload = {"item": item.to_dict()}
+    if warnings:
+        response_payload["warnings"] = warnings
+    return jsonify(response_payload), 201
 
 
 @items_bp.get("")
@@ -67,13 +68,10 @@ def update_item(item_id):
     user = current_user_or_404()
     item = get_owned_item_or_404(user.id, item_id)
     payload = get_request_payload()
+    warnings = []
 
     if "image" in request.files:
-        new_image_url = save_image(
-            request.files["image"],
-            current_app.config["UPLOAD_FOLDER"],
-            current_app.config["ALLOWED_IMAGE_EXTENSIONS"],
-        )
+        new_image_url, warnings = prepare_item_image(request.files["image"], payload)
         if item.image_url:
             remove_local_image(item.image_url, current_app.config["UPLOAD_FOLDER"])
         payload["image_url"] = new_image_url
@@ -83,7 +81,10 @@ def update_item(item_id):
         setattr(item, field_name, field_value)
 
     db.session.commit()
-    return jsonify({"item": item.to_dict()})
+    response_payload = {"item": item.to_dict()}
+    if warnings:
+        response_payload["warnings"] = warnings
+    return jsonify(response_payload)
 
 
 @items_bp.delete("/<int:item_id>")
@@ -112,3 +113,37 @@ def upload_item_image():
         current_app.config["ALLOWED_IMAGE_EXTENSIONS"],
     )
     return jsonify({"image_url": image_url}), 201
+
+
+@items_bp.post("/analyze-image")
+@jwt_required()
+def analyze_item_image():
+    if "image" not in request.files:
+        raise ApiError("Необходимо загрузить изображение.", 400)
+
+    analysis = FashionImageService().analyze_upload(request.files["image"])
+    return jsonify({"analysis": analysis})
+
+
+def prepare_item_image(file_storage, payload):
+    if parse_bool_field(payload.get("auto_remove_background"), default=False):
+        try:
+            processed_image_url = FashionImageService().process_and_store_upload(
+                file_storage,
+                current_app.config["UPLOAD_FOLDER"],
+            )
+            return processed_image_url, []
+        except ApiError as error:
+            original_image_url = save_image(
+                file_storage,
+                current_app.config["UPLOAD_FOLDER"],
+                current_app.config["ALLOWED_IMAGE_EXTENSIONS"],
+            )
+            return original_image_url, [error.message]
+
+    original_image_url = save_image(
+        file_storage,
+        current_app.config["UPLOAD_FOLDER"],
+        current_app.config["ALLOWED_IMAGE_EXTENSIONS"],
+    )
+    return original_image_url, []

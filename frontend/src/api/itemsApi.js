@@ -21,6 +21,16 @@ export function createItem(token, formData) {
 }
 
 
+export function analyzeItemImage(token, formData) {
+  return apiFetch("/items/analyze-image", {
+    method: "POST",
+    token,
+    body: formData,
+    isFormData: true,
+  });
+}
+
+
 export function updateItem(token, itemId, formData) {
   return apiFetch(`/items/${itemId}`, {
     method: "PUT",

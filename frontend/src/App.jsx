@@ -1,5 +1,6 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
+import ClothingItemDetailsModal from "./components/ClothingItemDetailsModal";
 import GuestRoute from "./components/GuestRoute";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -15,48 +16,65 @@ import RegisterPage from "./pages/RegisterPage";
 import SavedOutfitsPage from "./pages/SavedOutfitsPage";
 import WardrobePage from "./pages/WardrobePage";
 
+function AppRoutes() {
+  const location = useLocation();
+  const backgroundLocation = location.state?.backgroundLocation;
+
+  return (
+    <>
+      <Routes location={backgroundLocation || location}>
+        <Route
+          path="/login"
+          element={
+            <GuestRoute>
+              <LoginPage />
+            </GuestRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <GuestRoute>
+              <RegisterPage />
+            </GuestRoute>
+          }
+        />
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/wardrobe" element={<WardrobePage />} />
+            <Route path="/wardrobe/add" element={<AddClothingItemPage />} />
+            <Route path="/wardrobe/:itemId" element={<ClothingItemDetailsPage />} />
+            <Route path="/wardrobe/:itemId/edit" element={<EditClothingItemPage />} />
+            <Route path="/generate" element={<OutfitGeneratorPage />} />
+            <Route path="/outfits" element={<SavedOutfitsPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+          </Route>
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
+      {backgroundLocation ? (
+        <Routes>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/wardrobe/:itemId" element={<ClothingItemDetailsModal />} />
+          </Route>
+        </Routes>
+      ) : null}
+    </>
+  );
+}
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <GuestRoute>
-                <LoginPage />
-              </GuestRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <GuestRoute>
-                <RegisterPage />
-              </GuestRoute>
-            }
-          />
-
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/wardrobe" element={<WardrobePage />} />
-              <Route path="/wardrobe/add" element={<AddClothingItemPage />} />
-              <Route path="/wardrobe/:itemId" element={<ClothingItemDetailsPage />} />
-              <Route path="/wardrobe/:itemId/edit" element={<EditClothingItemPage />} />
-              <Route path="/generate" element={<OutfitGeneratorPage />} />
-              <Route path="/outfits" element={<SavedOutfitsPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-            </Route>
-          </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <AppRoutes />
       </AuthProvider>
     </BrowserRouter>
   );
 }
-
 
 export default App;

@@ -4,8 +4,8 @@ import { Link, Outlet } from "react-router-dom";
 import { fetchCurrentWeather } from "../api/weatherApi";
 import useAuth from "../hooks/useAuth";
 import { CloudIcon } from "../icons/AppIcons";
-import NavBar from "./NavBar";
 import { translateWeather } from "../utils/i18n";
+import NavBar from "./NavBar";
 
 
 export default function Layout() {
@@ -52,20 +52,20 @@ export default function Layout() {
 
       <main className="content-shell">
         <header className="topbar">
-          <div className="topbar-weather">
-            <div className="topbar-chip topbar-chip-city">{cityLabel}</div>
-            <div className="topbar-chip topbar-chip-temperature">{temperatureLabel}</div>
-            <div className="topbar-chip topbar-chip-weather">
-              <CloudIcon className="weather-chip-icon" />
-              <span>{weatherLabel}</span>
+          <div className="weather-bar">
+            <div className="weather-bar-city">{cityLabel}</div>
+            <div className="weather-bar-temperature">{temperatureLabel}</div>
+            <div className="weather-bar-icon-wrap">
+              <CloudIcon className="weather-bar-icon" />
             </div>
+            <div className="weather-bar-condition">{weatherLabel}</div>
           </div>
 
           <div className="topbar-actions">
-            <Link to="/wardrobe/add" className="secondary-button">
+            <Link to="/wardrobe/add" className="secondary-button topbar-add-button">
               Добавить вещь
             </Link>
-            <button type="button" className="ghost-button" onClick={logout}>
+            <button type="button" className="ghost-button topbar-logout-button" onClick={logout}>
               Выйти
             </button>
           </div>

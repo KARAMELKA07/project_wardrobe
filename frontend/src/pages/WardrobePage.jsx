@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { deleteItem, fetchItems } from "../api/itemsApi";
 import { getCategoryPlaceholderUrl, resolveItemImageUrl } from "../api/client";
@@ -9,6 +9,7 @@ import useAuth from "../hooks/useAuth";
 
 export default function WardrobePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { token } = useAuth();
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
@@ -51,7 +52,9 @@ export default function WardrobePage() {
   }
 
   function handleOpenItem(itemId) {
-    navigate(`/wardrobe/${itemId}`);
+    navigate(`/wardrobe/${itemId}`, {
+      state: { backgroundLocation: location },
+    });
   }
 
   function handleCardKeyDown(event, itemId) {

@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import {
   getCategoryPlaceholderUrl,
@@ -21,9 +21,16 @@ function getRoleSortIndex(role) {
   return index === -1 ? ROLE_ORDER.length : index;
 }
 
-function buildPhotoEntry(outfit) {
+function buildPhotoEntry(outfit, showPlaceholder = false) {
   if (!outfit?.styled_photo_url) {
-    return null;
+    if (!showPlaceholder) {
+      return null;
+    }
+
+    return {
+      type: "photo-placeholder",
+      key: `photo-placeholder-${outfit?.id || outfit?.name || "outfit"}`,
+    };
   }
 
   return {
@@ -34,7 +41,7 @@ function buildPhotoEntry(outfit) {
   };
 }
 
-function renderBoardCard(entry, slotName) {
+function renderBoardCard(entry, slotName, linkState) {
   if (!entry) {
     return null;
   }
@@ -50,12 +57,12 @@ function renderBoardCard(entry, slotName) {
             event.currentTarget.style.display = "none";
           }}
         />
-        <div className="board-card-caption">
-          <span>Фото</span>
-          <strong>{entry.title}</strong>
-        </div>
       </div>
     );
+  }
+
+  if (entry.type === "photo-placeholder") {
+    return <div key={entry.key} className="board-card board-card-empty" />;
   }
 
   const clothingItem = entry?.clothing_item || entry || {};
@@ -66,6 +73,7 @@ function renderBoardCard(entry, slotName) {
     <Link
       key={`${slotName}-${itemId || clothingItem.title || "item"}`}
       to={itemId ? `/wardrobe/${itemId}` : "/wardrobe"}
+      state={itemId ? linkState : undefined}
       className="board-card"
     >
       <img
@@ -98,6 +106,8 @@ export default function OutfitCard({
   onClose,
 }) {
   const uploadInputRef = useRef(null);
+  const location = useLocation();
+  const canUploadPhoto = Boolean(outfit?.id && onPhotoUpload);
 
   const roleMap = useMemo(() => {
     const sortedItems = [...(outfit.items || [])].sort((leftEntry, rightEntry) => {
@@ -116,7 +126,7 @@ export default function OutfitCard({
   }, [outfit.items]);
 
   const boardEntries = useMemo(() => {
-    const photoEntry = buildPhotoEntry(outfit);
+    const photoEntry = buildPhotoEntry(outfit, canUploadPhoto);
 
     return [
       roleMap.outerwear ? { key: "outerwear", slotName: "outerwear", entry: roleMap.outerwear } : null,
@@ -126,7 +136,7 @@ export default function OutfitCard({
       roleMap.shoes ? { key: "shoes", slotName: "shoes", entry: roleMap.shoes } : null,
       photoEntry ? { key: "photo", slotName: "photo", entry: photoEntry } : null,
     ].filter(Boolean);
-  }, [outfit, roleMap]);
+  }, [canUploadPhoto, outfit, roleMap]);
 
   const boardRows = useMemo(() => {
     if (boardEntries.length <= 3) {
@@ -139,6 +149,22 @@ export default function OutfitCard({
 
     return [boardEntries.slice(0, 3), boardEntries.slice(3)];
   }, [boardEntries]);
+
+  const reasons = useMemo(
+    () => (outfit.reasons || []).filter(Boolean).slice(0, 4),
+    [outfit.reasons],
+  );
+
+  const contextParts = [
+    translateEventType(outfit.event_type) || "Образ",
+    outfit.weather_context?.temperature !== undefined &&
+    outfit.weather_context?.temperature !== null
+      ? `${outfit.weather_context.temperature}°C`
+      : null,
+    outfit.weather_context?.weather_condition
+      ? translateWeather(outfit.weather_context.weather_condition)
+      : null,
+  ].filter(Boolean);
 
   function handleBackdropClick(event) {
     if (event.target === event.currentTarget) {
@@ -163,46 +189,6 @@ export default function OutfitCard({
   return (
     <div className="outfit-modal-backdrop" onClick={handleBackdropClick}>
       <article className="outfit-modal-window">
-        <div className="outfit-modal-top-actions">
-          <button
-            type="button"
-            className={`circle-action-button ${isSaved ? "is-active" : ""}`}
-            onClick={() => onSave?.(outfit)}
-            disabled={!onSave || isSaved}
-            aria-label={isSaved ? "Образ уже сохранен" : "Сохранить образ"}
-            title={isSaved ? "Уже сохранен" : "Сохранить"}
-          >
-            <HeartIcon filled={isSaved} />
-          </button>
-          <button
-            type="button"
-            className="circle-action-button"
-            onClick={onClose}
-            aria-label="Закрыть просмотр"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
-        <div className="outfit-modal-bottom-actions">
-          <button
-            type="button"
-            className="circle-action-button"
-            onClick={onPrevious}
-            aria-label="Предыдущий образ"
-          >
-            <ArrowLeftIcon />
-          </button>
-          <button
-            type="button"
-            className="circle-action-button"
-            onClick={onNext}
-            aria-label="Следующий образ"
-          >
-            <ArrowRightIcon />
-          </button>
-        </div>
-
         <div className="outfit-modal-content">
           <section className="outfit-modal-left">
             <div className="outfit-board-canvas">
@@ -222,7 +208,7 @@ export default function OutfitCard({
                   >
                     {row.map(({ key, slotName, entry }) => (
                       <div key={key} className={`board-slot board-slot-${slotName}`}>
-                        {renderBoardCard(entry, slotName)}
+                        {renderBoardCard(entry, slotName, { backgroundLocation: location })}
                       </div>
                     ))}
                   </div>
@@ -232,19 +218,32 @@ export default function OutfitCard({
           </section>
 
           <aside className="outfit-modal-sidebar">
-            <div className="outfit-side-copy">
-              <p className="eyebrow">Разбор образа</p>
-              <h2>{outfit.name || "Собранный образ"}</h2>
-              <p className="outfit-board-context">
-                {translateEventType(outfit.event_type) || "Образ"}
-                {outfit.weather_context?.temperature !== undefined &&
-                outfit.weather_context?.temperature !== null
-                  ? ` • ${outfit.weather_context.temperature}°C`
-                  : ""}
-                {outfit.weather_context?.weather_condition
-                  ? ` • ${translateWeather(outfit.weather_context.weather_condition)}`
-                  : ""}
-              </p>
+            <div className="outfit-modal-sidebar-head">
+              <div className="outfit-side-copy">
+                <h2>{outfit.name || "Образ"}</h2>
+                <p className="outfit-board-context">{contextParts.join(" · ")}</p>
+              </div>
+
+              <div className="outfit-modal-top-actions">
+                <button
+                  type="button"
+                  className={`circle-action-button ${isSaved ? "is-active" : ""}`}
+                  onClick={() => onSave?.(outfit)}
+                  disabled={!onSave || isSaved}
+                  aria-label={isSaved ? "Образ уже сохранён" : "Сохранить образ"}
+                  title={isSaved ? "Уже сохранён" : "Сохранить"}
+                >
+                  <HeartIcon filled={isSaved} />
+                </button>
+                <button
+                  type="button"
+                  className="circle-action-button"
+                  onClick={onClose}
+                  aria-label="Закрыть просмотр"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
             </div>
 
             <div className="outfit-summary-card">
@@ -256,40 +255,62 @@ export default function OutfitCard({
               <p className="outfit-summary-text">{outfit.explanation}</p>
             </div>
 
-            <div className="outfit-comments-list">
-              {(outfit.reasons || []).map((reason) => (
-                <div key={reason} className="outfit-comment-pill">
-                  {reason}
-                </div>
-              ))}
-            </div>
-
-            {outfit.id && onPhotoUpload ? (
-              <div className="outfit-photo-actions">
-                <input
-                  ref={uploadInputRef}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={handlePhotoChange}
-                />
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handlePhotoButtonClick}
-                  disabled={isUploadingPhoto}
-                >
-                  {isUploadingPhoto
-                    ? "Загрузка фото..."
-                    : outfit.styled_photo_url
-                      ? "Обновить фото в образе"
-                      : "Добавить фото в образ"}
-                </button>
-                <p className="muted-text">
-                  После сохранения можно добавить фото себя в этом образе.
-                </p>
+            {reasons.length ? (
+              <div className="outfit-comments-list">
+                {reasons.map((reason) => (
+                  <div key={reason} className="outfit-comment-pill">
+                    {reason}
+                  </div>
+                ))}
               </div>
             ) : null}
+
+            <div className="outfit-modal-sidebar-spacer" />
+
+            <div className="outfit-photo-actions">
+              {canUploadPhoto ? (
+                <>
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={handlePhotoChange}
+                  />
+                  <button
+                    type="button"
+                    className="secondary-button outfit-photo-button"
+                    onClick={handlePhotoButtonClick}
+                    disabled={isUploadingPhoto}
+                  >
+                    {isUploadingPhoto
+                      ? "Загрузка фото..."
+                      : outfit.styled_photo_url
+                        ? "Обновить фото в образе"
+                        : "Добавить фото в образ"}
+                  </button>
+                </>
+              ) : null}
+
+              <div className="outfit-modal-bottom-actions">
+                <button
+                  type="button"
+                  className="circle-action-button"
+                  onClick={onPrevious}
+                  aria-label="Предыдущий образ"
+                >
+                  <ArrowLeftIcon />
+                </button>
+                <button
+                  type="button"
+                  className="circle-action-button"
+                  onClick={onNext}
+                  aria-label="Следующий образ"
+                >
+                  <ArrowRightIcon />
+                </button>
+              </div>
+            </div>
           </aside>
         </div>
       </article>

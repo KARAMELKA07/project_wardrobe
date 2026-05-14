@@ -107,6 +107,8 @@ export default function ClothingItemForm({
   onSubmit,
   submitLabel,
   loading,
+  showHeading = true,
+  headingText = submitLabel,
 }) {
   const { token } = useAuth();
   const [formValues, setFormValues] = useState(mapInitialValues(initialValues));
@@ -278,11 +280,13 @@ export default function ClothingItemForm({
 
   return (
     <form className="surface-card form-card" onSubmit={handleSubmit}>
-      <div className="section-heading section-heading-stack">
-        <div>
-          <h1>{submitLabel}</h1>
+      {showHeading ? (
+        <div className="section-heading section-heading-stack">
+          <div>
+            <h1>{headingText}</h1>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="form-grid">
         <label>
