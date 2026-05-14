@@ -179,3 +179,78 @@ export function CloudIcon({ className = "" }) {
     </svg>
   );
 }
+
+export function SunIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={buildClassName("ui-icon", className)}
+      fill="none"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="4.25"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path d="M12 2.5V5.25M12 18.75V21.5M21.5 12H18.75M5.25 12H2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M18.72 5.28L16.78 7.22M7.22 16.78L5.28 18.72M18.72 18.72L16.78 16.78M7.22 7.22L5.28 5.28" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function RainIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={buildClassName("ui-icon", className)}
+      fill="none"
+    >
+      <path
+        d="M7.5 15.5H16.5C19.26 15.5 21.5 13.26 21.5 10.5C21.5 7.86 19.45 5.71 16.86 5.52C16.16 2.92 13.79 1 11 1C7.66 1 4.93 3.64 4.79 6.95C2.91 7.65 1.5 9.46 1.5 11.6C1.5 13.76 3.24 15.5 5.4 15.5H7.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M8 18L7 21M12 18L11 21M16 18L15 21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function SnowIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={buildClassName("ui-icon", className)}
+      fill="none"
+    >
+      <path
+        d="M7.5 14.75H16.5C19.26 14.75 21.5 12.51 21.5 9.75C21.5 7.11 19.45 4.96 16.86 4.77C16.16 2.17 13.79 0.25 11 0.25C7.66 0.25 4.93 2.89 4.79 6.2C2.91 6.9 1.5 8.71 1.5 10.85C1.5 13.01 3.24 14.75 5.4 14.75H7.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M9 18.25H15M12 15.25V21.25M9.75 16.5L14.25 20M14.25 16.5L9.75 20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function WindIcon({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={buildClassName("ui-icon", className)}
+      fill="none"
+    >
+      <path d="M3 9.5H15C17.49 9.5 19.5 7.49 19.5 5C19.5 4.17 18.83 3.5 18 3.5C17.17 3.5 16.5 4.17 16.5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 14.5H19C20.38 14.5 21.5 15.62 21.5 17C21.5 18.38 20.38 19.5 19 19.5C17.62 19.5 16.5 18.38 16.5 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

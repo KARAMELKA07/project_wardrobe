@@ -9,7 +9,7 @@ from ..schemas.outfit import (
     validate_save_outfit_payload,
 )
 from ..services.recommendation_engine import RecommendationEngine
-from ..services.weather_service import MockWeatherService
+from ..services.weather_service import WeatherService
 from ..utils.auth import current_user_or_404
 from ..utils.errors import ApiError
 from ..utils.request import get_request_payload
@@ -124,19 +124,38 @@ def generate_outfits():
     user = current_user_or_404()
     payload = validate_generate_payload(get_request_payload())
 
+    resolved_weather = None
+    should_load_weather = (
+        payload["temperature"] is None
+        or payload["weather_condition"] is None
+        or payload["latitude"] is not None
+        or payload["longitude"] is not None
+    )
+    if should_load_weather:
+        resolved_weather = WeatherService.get_current_weather(
+            city=user.city,
+            latitude=payload["latitude"],
+            longitude=payload["longitude"],
+        )
+
     weather_context = {
-        "city": user.city,
+        "city": (resolved_weather or {}).get("city") or user.city,
         "temperature": payload["temperature"],
         "weather_condition": payload["weather_condition"],
-        "season": None,
+        "season": (resolved_weather or {}).get("season"),
+        "source": (resolved_weather or {}).get("source") or "manual",
+        "latitude": (resolved_weather or {}).get("latitude") or payload["latitude"],
+        "longitude": (resolved_weather or {}).get("longitude") or payload["longitude"],
     }
-    if payload["temperature"] is None or payload["weather_condition"] is None:
-        mock_weather = MockWeatherService.get_current_weather(user.city)
-        if payload["temperature"] is None:
-            weather_context["temperature"] = mock_weather["temperature"]
-            weather_context["season"] = mock_weather["season"]
-        if payload["weather_condition"] is None:
-            weather_context["weather_condition"] = mock_weather["weather_condition"]
+
+    if payload["temperature"] is None and resolved_weather:
+        weather_context["temperature"] = resolved_weather["temperature"]
+    if payload["weather_condition"] is None and resolved_weather:
+        weather_context["weather_condition"] = resolved_weather["weather_condition"]
+    if weather_context["season"] is None:
+        weather_context["season"] = WeatherService.infer_season_from_temperature(
+            weather_context["temperature"]
+        )
 
     generation_context = {
         **payload,

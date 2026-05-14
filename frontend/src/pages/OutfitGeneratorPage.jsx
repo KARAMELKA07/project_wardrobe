@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchItems } from "../api/itemsApi";
 import { generateOutfits, saveOutfit, uploadOutfitPhoto } from "../api/outfitsApi";
 import OutfitCard from "../components/OutfitCard";
 import useAuth from "../hooks/useAuth";
+import useCurrentWeather from "../hooks/useCurrentWeather";
 import { translateCategory } from "../utils/i18n";
+import { resolveWeatherLocation } from "../utils/weatherLocation";
+
 
 const INITIAL_FORM = {
   event_type: "office",
@@ -16,8 +19,12 @@ const INITIAL_FORM = {
   constraints: "",
 };
 
+
 export default function OutfitGeneratorPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const { weather } = useCurrentWeather(token, user?.city);
+  const weatherPrefilledRef = useRef(false);
+
   const [items, setItems] = useState([]);
   const [formValues, setFormValues] = useState(INITIAL_FORM);
   const [generatedOutfits, setGeneratedOutfits] = useState([]);
@@ -43,6 +50,25 @@ export default function OutfitGeneratorPage() {
     loadItems();
   }, [token]);
 
+  useEffect(() => {
+    if (weatherPrefilledRef.current || !weather) {
+      return;
+    }
+
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      temperature:
+        currentValues.temperature === "" && weather.temperature !== null && weather.temperature !== undefined
+          ? String(weather.temperature)
+          : currentValues.temperature,
+      weather_condition:
+        !currentValues.weather_condition && weather.weather_condition
+          ? weather.weather_condition
+          : currentValues.weather_condition,
+    }));
+    weatherPrefilledRef.current = true;
+  }, [weather]);
+
   const activeOutfit = useMemo(() => {
     if (!generatedOutfits.length) {
       return null;
@@ -63,11 +89,20 @@ export default function OutfitGeneratorPage() {
     setResultMessage("");
 
     try {
+      const shouldResolveWeatherAutomatically =
+        !formValues.temperature || !formValues.weather_condition;
+      const location = shouldResolveWeatherAutomatically
+        ? await resolveWeatherLocation({ allowPrompt: true })
+        : null;
+
       const payload = {
         ...formValues,
         anchor_item_id: formValues.anchor_item_id || null,
         temperature: formValues.temperature || null,
+        latitude: location?.latitude ?? null,
+        longitude: location?.longitude ?? null,
       };
+
       const response = await generateOutfits(token, payload);
       setGeneratedOutfits(response.outfits || []);
       setSavedKeys({});
@@ -108,7 +143,7 @@ export default function OutfitGeneratorPage() {
         ...currentKeys,
         [savedOutfit.id || savedOutfit.name]: true,
       }));
-      setResultMessage("Образ сохранён. Теперь можно добавить фото.");
+      setResultMessage("Образ сохранен. Теперь можно добавить фото.");
     } catch (requestError) {
       setError(requestError.message);
     }

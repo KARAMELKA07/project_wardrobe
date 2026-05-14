@@ -14,14 +14,9 @@ def validate_generate_payload(payload):
     if not event_type:
         raise ApiError("Поле event_type обязательно.", 400)
 
-    temperature = payload.get("temperature")
-    if temperature not in (None, ""):
-        try:
-            temperature = float(temperature)
-        except (TypeError, ValueError) as error:
-            raise ApiError("Поле temperature должно быть числом.", 400) from error
-    else:
-        temperature = None
+    temperature = parse_optional_float(payload.get("temperature"), "temperature")
+    latitude = parse_optional_float(payload.get("latitude"), "latitude")
+    longitude = parse_optional_float(payload.get("longitude"), "longitude")
 
     anchor_item_id = payload.get("anchor_item_id")
     if anchor_item_id not in (None, ""):
@@ -38,6 +33,8 @@ def validate_generate_payload(payload):
         "preferred_style": preferred_style,
         "temperature": temperature,
         "weather_condition": weather_condition,
+        "latitude": latitude,
+        "longitude": longitude,
         "anchor_item_id": anchor_item_id,
         "constraints": constraints,
     }
@@ -109,3 +106,13 @@ def validate_feedback_payload(payload):
     if reaction not in {"like", "dislike", "save"}:
         raise ApiError("Поле reaction должно быть одним из: like, dislike, save.", 400)
     return {"reaction": reaction}
+
+
+def parse_optional_float(value, field_name):
+    if value in (None, ""):
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError) as error:
+        raise ApiError(f"Поле {field_name} должно быть числом.", 400) from error
