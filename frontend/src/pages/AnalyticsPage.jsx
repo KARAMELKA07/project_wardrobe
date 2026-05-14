@@ -6,16 +6,16 @@ import useAuth from "../hooks/useAuth";
 import { translateCategory, translateSeason } from "../utils/i18n";
 
 
-function renderMapEntries(data, translateValue = (value) => value) {
-  const entries = Object.entries(data || {});
+function renderSummaryLines(map, translateValue = (value) => value) {
+  const entries = Object.entries(map || {});
   if (!entries.length) {
-    return <div className="list-chip">Пока нет данных</div>;
+    return <p className="summary-line">Пока нет данных</p>;
   }
 
-  return entries.map(([label, value]) => (
-    <div key={label} className="list-chip">
-      {translateValue(label)}: {value}
-    </div>
+  return entries.map(([key, value]) => (
+    <p key={key} className="summary-line">
+      {translateValue(key)}: {value}
+    </p>
   ));
 }
 
@@ -39,69 +39,39 @@ export default function AnalyticsPage() {
   }, [token]);
 
   return (
-    <section className="page-section">
-      <div className="section-heading">
+    <section className="page-section analytics-page">
+      <div className="section-heading section-heading-stack">
         <div>
-          <p className="eyebrow">Аналитика</p>
-          <h1>Сводка по гардеробу</h1>
+          <h1>Аналитика гардероба</h1>
         </div>
       </div>
 
       {error ? <p className="error-text">{error}</p> : null}
 
-      <div className="stats-grid">
-        <StatCard
-          label="Всего вещей"
-          value={summary?.total_items ?? 0}
-          helpText="Все вещи, добавленные текущим пользователем."
-        />
-        <StatCard
-          label="Покрыто сезонов"
-          value={Object.keys(summary?.by_season || {}).length}
-          helpText="Сколько сезонов представлено в гардеробе."
-        />
-        <StatCard
-          label="Покрыто стилей"
-          value={Object.keys(summary?.by_style || {}).length}
-          helpText="Сколько разных стилей есть в базе."
-        />
+      <div className="stats-grid stats-grid-dashboard">
+        <StatCard label="Всего вещей" value={summary?.total_items ?? 0} />
+        <StatCard label="Покрыто сезонов" value={Object.keys(summary?.by_season || {}).length} />
+        <StatCard label="Покрыто стилей" value={Object.keys(summary?.by_style || {}).length} />
       </div>
 
-      <div className="two-column-grid">
-        <article className="card">
-          <p className="eyebrow">Категории</p>
-          <h2>По категориям</h2>
-          <div className="stack-list">
-            {renderMapEntries(summary?.by_category, translateCategory)}
+      <div className="summary-grid">
+        <article className="summary-card">
+          <h3>По категориям</h3>
+          <div className="summary-lines">
+            {renderSummaryLines(summary?.by_category, translateCategory)}
           </div>
         </article>
 
-        <article className="card">
-          <p className="eyebrow">Сезоны</p>
-          <h2>По сезонам</h2>
-          <div className="stack-list">
-            {renderMapEntries(summary?.by_season, translateSeason)}
+        <article className="summary-card">
+          <h3>По сезонам</h3>
+          <div className="summary-lines">
+            {renderSummaryLines(summary?.by_season, translateSeason)}
           </div>
         </article>
 
-        <article className="card">
-          <p className="eyebrow">Стили</p>
-          <h2>По стилям</h2>
-          <div className="stack-list">{renderMapEntries(summary?.by_style)}</div>
-        </article>
-
-        <article className="card">
-          <p className="eyebrow">Рекомендации</p>
-          <h2>Короткие выводы</h2>
-          <div className="stack-list">
-            {(summary?.recommendations || ["Аналитика появится после добавления вещей."]).map(
-              (entry) => (
-                <div key={entry} className="list-chip">
-                  {entry}
-                </div>
-              ),
-            )}
-          </div>
+        <article className="summary-card">
+          <h3>По стилям</h3>
+          <div className="summary-lines">{renderSummaryLines(summary?.by_style)}</div>
         </article>
       </div>
     </section>

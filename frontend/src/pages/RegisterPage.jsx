@@ -38,68 +38,69 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-shell">
-      <form className="card auth-card" onSubmit={handleSubmit}>
-        <p className="eyebrow">Цифровой гардероб</p>
-        <h1>Регистрация</h1>
-        <p className="muted-text">
-          Создайте аккаунт, чтобы собрать цифровой гардероб и тестировать подбор образов.
-        </p>
+      <form className="auth-card" onSubmit={handleSubmit}>
+        <div className="auth-card-inner">
+          <h1>Регистрация</h1>
+          <p className="auth-description">
+            Создайте аккаунт, чтобы собрать цифровой гардероб и тестировать подбор образов.
+          </p>
 
-        <label>
-          Имя
-          <input
-            className="input"
-            name="name"
-            value={formValues.name}
-            onChange={handleChange}
-            required
-          />
-        </label>
+          <label>
+            Имя
+            <input
+              className="input"
+              name="name"
+              value={formValues.name}
+              onChange={handleChange}
+              required
+            />
+          </label>
 
-        <label>
-          Город
-          <input
-            className="input"
-            name="city"
-            value={formValues.city}
-            onChange={handleChange}
-            placeholder="Москва"
-          />
-        </label>
+          <label>
+            Город
+            <input
+              className="input"
+              name="city"
+              value={formValues.city}
+              onChange={handleChange}
+              placeholder="Москва"
+            />
+          </label>
 
-        <label>
-          Email
-          <input
-            className="input"
-            type="email"
-            name="email"
-            value={formValues.email}
-            onChange={handleChange}
-            required
-          />
-        </label>
+          <label>
+            Email
+            <input
+              className="input"
+              type="email"
+              name="email"
+              value={formValues.email}
+              onChange={handleChange}
+              required
+            />
+          </label>
 
-        <label>
-          Пароль
-          <input
-            className="input"
-            type="password"
-            name="password"
-            value={formValues.password}
-            onChange={handleChange}
-            required
-          />
-        </label>
+          <label>
+            Пароль
+            <input
+              className="input"
+              type="password"
+              name="password"
+              value={formValues.password}
+              onChange={handleChange}
+              required
+            />
+          </label>
 
-        {error ? <p className="error-text">{error}</p> : null}
+          {error ? <p className="error-text">{error}</p> : null}
 
-        <button type="submit" className="primary-button" disabled={loading}>
-          {loading ? "Создание..." : "Создать аккаунт"}
-        </button>
+          <button type="submit" className="primary-button" disabled={loading}>
+            {loading ? "Создание..." : "Создать аккаунт"}
+          </button>
 
-        <p className="muted-text">
-          Уже есть аккаунт? <Link to="/login">Войти</Link>
-        </p>
+          <p className="auth-link-text">
+            Уже есть аккаунт? <Link to="/login">Войти</Link>
+          </p>
+        </div>
       </form>
     </div>
   );

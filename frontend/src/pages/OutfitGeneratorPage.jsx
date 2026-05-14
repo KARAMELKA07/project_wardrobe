@@ -4,7 +4,7 @@ import { fetchItems } from "../api/itemsApi";
 import { generateOutfits, saveOutfit, uploadOutfitPhoto } from "../api/outfitsApi";
 import OutfitCard from "../components/OutfitCard";
 import useAuth from "../hooks/useAuth";
-import { translateCategory, translateSeason, translateWeather } from "../utils/i18n";
+import { translateCategory } from "../utils/i18n";
 
 const INITIAL_FORM = {
   event_type: "office",
@@ -21,7 +21,6 @@ export default function OutfitGeneratorPage() {
   const [items, setItems] = useState([]);
   const [formValues, setFormValues] = useState(INITIAL_FORM);
   const [generatedOutfits, setGeneratedOutfits] = useState([]);
-  const [weather, setWeather] = useState(null);
   const [savedKeys, setSavedKeys] = useState({});
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,7 +70,6 @@ export default function OutfitGeneratorPage() {
       };
       const response = await generateOutfits(token, payload);
       setGeneratedOutfits(response.outfits || []);
-      setWeather(response.weather || null);
       setSavedKeys({});
       setHasGenerated(true);
       setResultMessage(response.message || "");
@@ -104,15 +102,13 @@ export default function OutfitGeneratorPage() {
 
       const savedOutfit = response.outfit;
       setGeneratedOutfits((currentOutfits) =>
-        currentOutfits.map((entry, index) =>
-          index === activeIndex ? savedOutfit : entry,
-        ),
+        currentOutfits.map((entry, index) => (index === activeIndex ? savedOutfit : entry)),
       );
       setSavedKeys((currentKeys) => ({
         ...currentKeys,
         [savedOutfit.id || savedOutfit.name]: true,
       }));
-      setResultMessage("Образ сохранён в избранное. Теперь можно добавить своё фото.");
+      setResultMessage("Образ сохранён. Теперь можно добавить фото.");
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -129,11 +125,9 @@ export default function OutfitGeneratorPage() {
       const updatedOutfit = response.outfit;
 
       setGeneratedOutfits((currentOutfits) =>
-        currentOutfits.map((entry) =>
-          entry.id === outfitId ? updatedOutfit : entry,
-        ),
+        currentOutfits.map((entry) => (entry.id === outfitId ? updatedOutfit : entry)),
       );
-      setResultMessage("Фото добавлено. Доска образа обновлена.");
+      setResultMessage("Фото добавлено. Карточка образа обновлена.");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -154,18 +148,14 @@ export default function OutfitGeneratorPage() {
   }
 
   return (
-    <section className="page-section">
-      <div className="section-heading">
+    <section className="page-section generator-page">
+      <div className="section-heading section-heading-stack">
         <div>
-          <p className="eyebrow">Подбор образов</p>
           <h1>Соберите подборку образов</h1>
-          <p className="muted-text">
-            После генерации доска откроется во всплывающем окне. Там можно листать варианты и сохранять лучший.
-          </p>
         </div>
       </div>
 
-      <form className="card form-card" onSubmit={handleSubmit}>
+      <form className="surface-card form-card generator-form-card" onSubmit={handleSubmit}>
         <div className="form-grid">
           <label>
             Тип события
@@ -177,8 +167,8 @@ export default function OutfitGeneratorPage() {
             >
               <option value="office">Офис</option>
               <option value="casual">Повседневный</option>
-              <option value="evening">Вечер</option>
-              <option value="sport">Спорт</option>
+              <option value="evening">Вечерний</option>
+              <option value="sport">Спортивный</option>
               <option value="party">Вечеринка</option>
               <option value="travel">Поездка</option>
               <option value="date">Свидание</option>
@@ -192,7 +182,6 @@ export default function OutfitGeneratorPage() {
               name="preferred_colors"
               value={formValues.preferred_colors}
               onChange={handleChange}
-              placeholder="белый, черный, бежевый"
             />
           </label>
 
@@ -203,38 +192,7 @@ export default function OutfitGeneratorPage() {
               name="preferred_style"
               value={formValues.preferred_style}
               onChange={handleChange}
-              placeholder="minimal"
             />
-          </label>
-
-          <label>
-            Температура
-            <input
-              className="input"
-              name="temperature"
-              type="number"
-              value={formValues.temperature}
-              onChange={handleChange}
-              placeholder="12"
-            />
-          </label>
-
-          <label>
-            Погода
-            <select
-              className="input"
-              name="weather_condition"
-              value={formValues.weather_condition}
-              onChange={handleChange}
-            >
-              <option value="">Использовать тестовую погоду</option>
-              <option value="sunny">Солнечно</option>
-              <option value="cloudy">Облачно</option>
-              <option value="clear">Ясно</option>
-              <option value="rain">Дождь</option>
-              <option value="snow">Снег</option>
-              <option value="wind">Ветрено</option>
-            </select>
           </label>
 
           <label>
@@ -254,6 +212,35 @@ export default function OutfitGeneratorPage() {
             </select>
           </label>
 
+          <label>
+            Погода
+            <select
+              className="input"
+              name="weather_condition"
+              value={formValues.weather_condition}
+              onChange={handleChange}
+            >
+              <option value="">Определить автоматически</option>
+              <option value="sunny">Солнечно</option>
+              <option value="cloudy">Облачно</option>
+              <option value="clear">Ясно</option>
+              <option value="rain">Дождь</option>
+              <option value="snow">Снег</option>
+              <option value="wind">Ветрено</option>
+            </select>
+          </label>
+
+          <label>
+            Температура
+            <input
+              className="input"
+              name="temperature"
+              type="number"
+              value={formValues.temperature}
+              onChange={handleChange}
+            />
+          </label>
+
           <label className="full-width">
             Ограничения
             <input
@@ -261,12 +248,11 @@ export default function OutfitGeneratorPage() {
               name="constraints"
               value={formValues.constraints}
               onChange={handleChange}
-              placeholder="no_heels, no_bright_colors"
             />
           </label>
         </div>
 
-        <button type="submit" className="primary-button" disabled={loading}>
+        <button type="submit" className="primary-button primary-button-wide" disabled={loading}>
           {loading ? "Подбор..." : "Создать образы"}
         </button>
       </form>
@@ -274,37 +260,8 @@ export default function OutfitGeneratorPage() {
       {error ? <p className="error-text">{error}</p> : null}
       {resultMessage ? <p className="muted-text">{resultMessage}</p> : null}
 
-      {weather ? (
-        <div className="card weather-card">
-          <p className="eyebrow">Погодный контекст</p>
-          <h3>
-            {weather.temperature}°C • {translateWeather(weather.weather_condition)}
-          </h3>
-          <p className="muted-text">
-            {weather.city || "Тестовый город"}
-            {weather.season ? ` • ${translateSeason(weather.season)}` : ""}
-          </p>
-        </div>
-      ) : null}
-
-      {!loading && hasGenerated && generatedOutfits.length > 0 && !isModalOpen ? (
-        <div className="card centered-card">
-          <h3>Доски образов готовы</h3>
-          <p className="muted-text">
-            Откройте модальное окно и пролистайте варианты стрелками.
-          </p>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => setIsModalOpen(true)}
-          >
-            Открыть доску образа
-          </button>
-        </div>
-      ) : null}
-
       {!loading && hasGenerated && generatedOutfits.length === 0 ? (
-        <div className="card empty-state">
+        <div className="surface-card empty-state">
           {resultMessage || "Для выбранных параметров не найдено подходящих сочетаний."}
         </div>
       ) : null}

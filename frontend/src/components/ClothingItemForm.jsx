@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { analyzeItemImage } from "../api/itemsApi";
 import { resolveAssetUrl } from "../api/client";
 import {
   CATEGORY_OPTIONS,
@@ -8,6 +9,7 @@ import {
   INSULATION_OPTIONS,
   LAYER_LEVEL_OPTIONS,
   STYLE_OPTIONS,
+  getColorLabel,
   getDefaultFitValue,
   getDefaultInsulationValue,
   getDefaultLayerLevelValue,
@@ -16,13 +18,13 @@ import {
   getSubcategoryOptions,
   normalizeCatalogValue,
 } from "../data/clothingOptions";
+import useAuth from "../hooks/useAuth";
 import {
   translateLayerLevel,
   translateFormality,
   translateFit,
   translateSeason,
 } from "../utils/i18n";
-
 
 const EMPTY_FORM = {
   title: "",
@@ -40,7 +42,6 @@ const EMPTY_FORM = {
   image_url: "",
 };
 
-
 function buildDefaultMetadata(category, subcategory) {
   const fit = getDefaultFitValue(subcategory);
   const layerLevel = getDefaultLayerLevelValue(subcategory, category);
@@ -55,7 +56,6 @@ function buildDefaultMetadata(category, subcategory) {
     windproof: protectionFlags.windproof,
   };
 }
-
 
 function mapInitialValues(initialValues) {
   if (!initialValues) {
@@ -85,7 +85,6 @@ function mapInitialValues(initialValues) {
   };
 }
 
-
 function toggleArrayValue(currentValues, value) {
   if (currentValues.includes(value)) {
     return currentValues.filter((entry) => entry !== value);
@@ -94,6 +93,14 @@ function toggleArrayValue(currentValues, value) {
   return [...currentValues, value];
 }
 
+function buildSuggestedTitle(colors, baseTitle) {
+  const cleanBaseTitle = baseTitle || "Новая вещь";
+  if (!colors?.length) {
+    return cleanBaseTitle;
+  }
+
+  return `${getColorLabel(colors[0])} ${cleanBaseTitle}`.trim();
+}
 
 export default function ClothingItemForm({
   initialValues,
@@ -101,12 +108,23 @@ export default function ClothingItemForm({
   submitLabel,
   loading,
 }) {
+  const { token } = useAuth();
   const [formValues, setFormValues] = useState(mapInitialValues(initialValues));
   const [imageFile, setImageFile] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  const [analysisWarning, setAnalysisWarning] = useState("");
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [autoRemoveBackground, setAutoRemoveBackground] = useState(false);
 
   useEffect(() => {
     setFormValues(mapInitialValues(initialValues));
     setImageFile(null);
+    setAnalysisLoading(false);
+    setAnalysisError("");
+    setAnalysisWarning("");
+    setAnalysisResult(null);
+    setAutoRemoveBackground(false);
   }, [initialValues]);
 
   const availableSubcategories = getSubcategoryOptions(formValues.category);
@@ -163,6 +181,71 @@ export default function ClothingItemForm({
     }));
   }
 
+  async function handleImageSelection(event) {
+    const nextFile = event.target.files?.[0] || null;
+    setImageFile(nextFile);
+    setAnalysisError("");
+    setAnalysisWarning("");
+    setAnalysisResult(null);
+
+    if (!nextFile) {
+      setAutoRemoveBackground(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", nextFile);
+
+    setAnalysisLoading(true);
+    try {
+      const response = await analyzeItemImage(token, formData);
+      applyImageAnalysis(response.analysis);
+    } catch (requestError) {
+      setAnalysisError(requestError.message);
+      setAutoRemoveBackground(false);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }
+
+  function applyImageAnalysis(analysis) {
+    if (!analysis) {
+      return;
+    }
+
+    setAnalysisResult(analysis);
+    setAnalysisWarning((analysis.warnings || []).join(" "));
+    setAutoRemoveBackground(Boolean(analysis.background_removed));
+
+    const nextCategory = normalizeCatalogValue(analysis.category) || formValues.category;
+    const nextSubcategory =
+      normalizeCatalogValue(analysis.subcategory) || formValues.subcategory;
+    const defaultMetadata = buildDefaultMetadata(nextCategory, nextSubcategory);
+    const titleSuggestion = buildSuggestedTitle(
+      analysis.colors,
+      analysis.title_suggestion || getSubcategoryLabel(nextSubcategory),
+    );
+
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      title: currentValues.title || titleSuggestion,
+      category: nextCategory,
+      subcategory: nextSubcategory,
+      colors: analysis.colors?.length ? analysis.colors : currentValues.colors,
+      styles: analysis.styles?.length ? analysis.styles : currentValues.styles,
+      season: analysis.season || currentValues.season,
+      formality: analysis.formality || currentValues.formality,
+      fit: analysis.fit || defaultMetadata.fit,
+      layer_level: analysis.layer_level || defaultMetadata.layer_level,
+      insulation_rating: String(
+        analysis.insulation_rating ?? defaultMetadata.insulation_rating,
+      ),
+      waterproof:
+        analysis.waterproof ?? currentValues.waterproof ?? defaultMetadata.waterproof,
+      windproof: analysis.windproof ?? currentValues.windproof ?? defaultMetadata.windproof,
+    }));
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -180,6 +263,7 @@ export default function ClothingItemForm({
     formData.append("waterproof", String(formValues.waterproof));
     formData.append("windproof", String(formValues.windproof));
     formData.append("material", "");
+    formData.append("auto_remove_background", String(autoRemoveBackground));
 
     if (formValues.image_url) {
       formData.append("image_url", formValues.image_url);
@@ -193,16 +277,11 @@ export default function ClothingItemForm({
   }
 
   return (
-    <form className="card form-card" onSubmit={handleSubmit}>
-      <div className="section-heading">
+    <form className="surface-card form-card" onSubmit={handleSubmit}>
+      <div className="section-heading section-heading-stack">
         <div>
-          <p className="eyebrow">Гардероб</p>
-          <h2>{submitLabel}</h2>
+          <h1>{submitLabel}</h1>
         </div>
-        <p className="muted-text">
-          Основные характеристики выбираются из каталога, чтобы сервису было проще
-          собирать подходящие образы.
-        </p>
       </div>
 
       <div className="form-grid">
@@ -332,10 +411,22 @@ export default function ClothingItemForm({
 
         <div className="field-block">
           <div className="field-heading">
+            <span className="field-label">Изображение вещи</span>
+          </div>
+          <label className="file-upload-button">
+            <input
+              type="file"
+              accept=".png,.jpg,.jpeg,.webp"
+              onChange={handleImageSelection}
+              hidden
+            />
+            {imageFile ? imageFile.name : "Выберите файл"}
+          </label>
+        </div>
+
+        <div className="field-block">
+          <div className="field-heading">
             <span className="field-label">Защитные свойства</span>
-            <span className="field-helper">
-              Отметьте, если вещь реально защищает от дождя или ветра.
-            </span>
           </div>
           <div className="chip-grid">
             <label className={formValues.waterproof ? "chip-button is-selected" : "chip-button"}>
@@ -364,7 +455,6 @@ export default function ClothingItemForm({
         <div className="field-block full-width">
           <div className="field-heading">
             <span className="field-label">Цвета</span>
-            <span className="field-helper">Можно выбрать несколько базовых цветов.</span>
           </div>
           <div className="color-picker-grid">
             {COLOR_OPTIONS.map((option) => {
@@ -375,6 +465,8 @@ export default function ClothingItemForm({
                   type="button"
                   className={selected ? "color-swatch is-selected" : "color-swatch"}
                   onClick={() => handleToggle("colors", option.value)}
+                  aria-label={option.label}
+                  title={option.label}
                 >
                   <span
                     className="color-dot"
@@ -383,7 +475,6 @@ export default function ClothingItemForm({
                       borderColor: option.border,
                     }}
                   />
-                  <span>{option.label}</span>
                 </button>
               );
             })}
@@ -393,7 +484,6 @@ export default function ClothingItemForm({
         <div className="field-block full-width">
           <div className="field-heading">
             <span className="field-label">Стили</span>
-            <span className="field-helper">Выберите один или несколько подходящих стилей.</span>
           </div>
           <div className="chip-grid">
             {STYLE_OPTIONS.map((option) => {
@@ -412,15 +502,49 @@ export default function ClothingItemForm({
           </div>
         </div>
 
-        <label className="file-input-wrapper full-width">
-          Изображение вещи
-          <input
-            className="input"
-            type="file"
-            accept=".png,.jpg,.jpeg,.webp"
-            onChange={(event) => setImageFile(event.target.files?.[0] || null)}
-          />
-        </label>
+        <div className="field-block full-width">
+          <div className="field-heading">
+            <span className="field-label">ИИ-анализ изображения</span>
+            <span className="field-helper">
+              После загрузки фото система удалит фон, определит тип вещи и предложит характеристики.
+            </span>
+          </div>
+
+          <label className={autoRemoveBackground ? "chip-button is-selected" : "chip-button"}>
+            <input
+              type="checkbox"
+              checked={autoRemoveBackground}
+              onChange={(event) => setAutoRemoveBackground(event.target.checked)}
+              hidden
+            />
+            Удалить фон при сохранении
+          </label>
+
+          {analysisLoading ? (
+            <p className="muted-text">Анализируем изображение и подбираем характеристики...</p>
+          ) : null}
+
+          {analysisError ? <p className="error-text">{analysisError}</p> : null}
+          {analysisWarning ? <p className="muted-text">{analysisWarning}</p> : null}
+
+          {analysisResult ? (
+            <div className="analysis-summary">
+              <span className="analysis-pill">
+                Тип: {getSubcategoryLabel(analysisResult.subcategory) || "не определен"}
+              </span>
+              {(analysisResult.colors || []).map((color) => (
+                <span key={color} className="analysis-pill">
+                  Цвет: {getColorLabel(color)}
+                </span>
+              ))}
+              {analysisResult.confidence ? (
+                <span className="analysis-pill">
+                  Точность: {(analysisResult.confidence * 100).toFixed(0)}%
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {formValues.image_url ? (
@@ -439,7 +563,7 @@ export default function ClothingItemForm({
         </div>
       ) : null}
 
-      <button type="submit" className="primary-button" disabled={loading}>
+      <button type="submit" className="primary-button primary-button-wide" disabled={loading || analysisLoading}>
         {loading ? "Сохранение..." : submitLabel}
       </button>
     </form>

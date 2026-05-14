@@ -1,11 +1,50 @@
+import { useEffect, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 
+import { fetchCurrentWeather } from "../api/weatherApi";
 import useAuth from "../hooks/useAuth";
+import { CloudIcon } from "../icons/AppIcons";
 import NavBar from "./NavBar";
+import { translateWeather } from "../utils/i18n";
 
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { token, user, logout } = useAuth();
+  const [weather, setWeather] = useState(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadWeather() {
+      try {
+        const response = await fetchCurrentWeather(token);
+        if (!ignore) {
+          setWeather(response.weather || null);
+        }
+      } catch {
+        if (!ignore) {
+          setWeather(null);
+        }
+      }
+    }
+
+    if (token) {
+      loadWeather();
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [token]);
+
+  const cityLabel = weather?.city || user?.city || "Москва";
+  const temperatureLabel =
+    weather?.temperature === 0 || weather?.temperature
+      ? `${weather.temperature} °C`
+      : "12 °C";
+  const weatherLabel = weather?.weather_condition
+    ? translateWeather(weather.weather_condition)
+    : "Облачно";
 
   return (
     <div className="app-shell">
@@ -13,13 +52,13 @@ export default function Layout() {
 
       <main className="content-shell">
         <header className="topbar">
-          <div>
-            <p className="eyebrow">Авторизация</p>
-            <h2 className="page-title">{user?.name || "Пользователь"}</h2>
-            <p className="muted-text">
-              {user?.email}
-              {user?.city ? ` | ${user.city}` : ""}
-            </p>
+          <div className="topbar-weather">
+            <div className="topbar-chip topbar-chip-city">{cityLabel}</div>
+            <div className="topbar-chip topbar-chip-temperature">{temperatureLabel}</div>
+            <div className="topbar-chip topbar-chip-weather">
+              <CloudIcon className="weather-chip-icon" />
+              <span>{weatherLabel}</span>
+            </div>
           </div>
 
           <div className="topbar-actions">

@@ -47,7 +47,7 @@ export default function EditClothingItemPage() {
   if (loading) {
     return (
       <section className="page-section">
-        <div className="card">Загрузка вещи...</div>
+        <div className="surface-card">Загрузка вещи...</div>
       </section>
     );
   }

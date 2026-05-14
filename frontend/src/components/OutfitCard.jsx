@@ -6,6 +6,12 @@ import {
   resolveAssetUrl,
   resolveItemImageUrl,
 } from "../api/client";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CloseIcon,
+  HeartIcon,
+} from "../icons/AppIcons";
 import { translateEventType, translateRole, translateWeather } from "../utils/i18n";
 
 const ROLE_ORDER = ["outerwear", "top", "bottom", "shoes", "accessory"];
@@ -160,40 +166,40 @@ export default function OutfitCard({
         <div className="outfit-modal-top-actions">
           <button
             type="button"
-            className={`favorite-button ${isSaved ? "is-active" : ""}`}
+            className={`circle-action-button ${isSaved ? "is-active" : ""}`}
             onClick={() => onSave?.(outfit)}
             disabled={!onSave || isSaved}
-            aria-label={isSaved ? "Образ уже в избранном" : "Сохранить образ в избранное"}
-            title={isSaved ? "Уже в избранном" : "Сохранить в избранное"}
+            aria-label={isSaved ? "Образ уже сохранен" : "Сохранить образ"}
+            title={isSaved ? "Уже сохранен" : "Сохранить"}
           >
-            {isSaved ? "♥" : "♡"}
+            <HeartIcon filled={isSaved} />
           </button>
           <button
             type="button"
-            className="modal-close-button"
+            className="circle-action-button"
             onClick={onClose}
             aria-label="Закрыть просмотр"
           >
-            ×
+            <CloseIcon />
           </button>
         </div>
 
         <div className="outfit-modal-bottom-actions">
           <button
             type="button"
-            className="arrow-button"
+            className="circle-action-button"
             onClick={onPrevious}
             aria-label="Предыдущий образ"
           >
-            ←
+            <ArrowLeftIcon />
           </button>
           <button
             type="button"
-            className="arrow-button"
+            className="circle-action-button"
             onClick={onNext}
             aria-label="Следующий образ"
           >
-            →
+            <ArrowRightIcon />
           </button>
         </div>
 
@@ -215,10 +221,7 @@ export default function OutfitCard({
                     }`}
                   >
                     {row.map(({ key, slotName, entry }) => (
-                      <div
-                        key={key}
-                        className={`board-slot board-slot-${slotName} board-slot-active`}
-                      >
+                      <div key={key} className={`board-slot board-slot-${slotName}`}>
                         {renderBoardCard(entry, slotName)}
                       </div>
                     ))}
@@ -280,7 +283,7 @@ export default function OutfitCard({
                     ? "Загрузка фото..."
                     : outfit.styled_photo_url
                       ? "Обновить фото в образе"
-                      : "Добавить своё фото к образу"}
+                      : "Добавить фото в образ"}
                 </button>
                 <p className="muted-text">
                   После сохранения можно добавить фото себя в этом образе.

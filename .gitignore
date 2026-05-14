@@ -47,6 +47,8 @@ pnpm-debug.log*
 # ===== IDE =====
 .vscode/
 .idea/
+.vs/
+backend/.vs/
 
 # ===== OS =====
 .DS_Store
@@ -57,3 +59,10 @@ uploads/*
 !uploads/.gitkeep
 !uploads/placeholders/
 !uploads/placeholders/*.svg
+
+# ===== Local training artifacts / large files =====
+backend/.torch-cache/
+backend/training_logs/
+backend/model_artifacts/*
+!backend/model_artifacts/.gitkeep
+backend/Category and Attribute Prediction Benchmark/

@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { deleteItem, fetchItems } from "../api/itemsApi";
-import {
-  getCategoryPlaceholderUrl,
-  resolveItemImageUrl,
-} from "../api/client";
+import { getCategoryPlaceholderUrl, resolveItemImageUrl } from "../api/client";
+import { PencilIcon, TrashIcon } from "../icons/AppIcons";
 import useAuth from "../hooks/useAuth";
+
 
 export default function WardrobePage() {
   const navigate = useNavigate();
@@ -29,6 +28,14 @@ export default function WardrobePage() {
 
     loadItems();
   }, [token]);
+
+  const bannerText = useMemo(() => {
+    if (!items.length) {
+      return "Добавьте первые вещи, чтобы собрать цифровой гардероб.";
+    }
+
+    return "Состав гардероба выглядит достаточно сбалансированным";
+  }, [items]);
 
   async function handleDelete(itemId) {
     if (!window.confirm("Удалить эту вещь из гардероба?")) {
@@ -55,31 +62,35 @@ export default function WardrobePage() {
   }
 
   return (
-    <section className="page-section">
-      <div className="section-heading">
+    <section className="page-section wardrobe-page">
+      <div className="section-heading section-heading-stack">
         <div>
-          <p className="eyebrow">Гардероб</p>
           <h1>Ваши вещи</h1>
         </div>
-        <Link to="/wardrobe/add" className="primary-button">
-          Добавить вещь
-        </Link>
       </div>
 
       {error ? <p className="error-text">{error}</p> : null}
-      {loading ? <div className="card">Загрузка гардероба...</div> : null}
+
+      <section className="overview-banner">
+        <div className="overview-banner-copy">
+          <p>{bannerText}</p>
+        </div>
+        <div className="overview-banner-accent" />
+      </section>
+
+      {loading ? <div className="surface-card">Загрузка гардероба...</div> : null}
 
       {!loading && items.length === 0 ? (
-        <div className="card empty-state">
-          Пока вещей нет. Добавьте верх, низ и обувь, чтобы начать подбор образов.
+        <div className="surface-card empty-state">
+          Пока вещей нет. Добавьте верх, низ, обувь и аксессуары, чтобы начать подбор образов.
         </div>
       ) : null}
 
-      <div className="item-grid">
+      <div className="wardrobe-grid">
         {items.map((item) => (
           <article
             key={item.id}
-            className="card item-card item-card-compact item-card-clickable"
+            className="wardrobe-card"
             role="button"
             tabIndex={0}
             onClick={() => handleOpenItem(item.id)}
@@ -88,38 +99,37 @@ export default function WardrobePage() {
             <img
               src={resolveItemImageUrl(item)}
               alt={item.title}
-              className="item-cover"
+              className="wardrobe-card-image"
               onError={(event) => {
                 event.currentTarget.src = getCategoryPlaceholderUrl(item.category);
               }}
             />
 
-            <div className="item-body">
-              <div className="item-compact-footer">
-                <h3 className="item-compact-title">{item.title}</h3>
-                <div className="item-icon-actions">
-                  <Link
-                    to={`/wardrobe/${item.id}/edit`}
-                    className="item-icon-button"
-                    aria-label="Редактировать вещь"
-                    title="Редактировать"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    ✎
-                  </Link>
-                  <button
-                    type="button"
-                    className="item-icon-button item-icon-button-danger"
-                    aria-label="Удалить вещь"
-                    title="Удалить"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleDelete(item.id);
-                    }}
-                  >
-                    🗑
-                  </button>
-                </div>
+            <div className="wardrobe-card-footer">
+              <span className="wardrobe-card-title">{item.title}</span>
+
+              <div className="wardrobe-card-actions">
+                <Link
+                  to={`/wardrobe/${item.id}/edit`}
+                  className="icon-button"
+                  aria-label="Редактировать вещь"
+                  title="Редактировать"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <PencilIcon />
+                </Link>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Удалить вещь"
+                  title="Удалить"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleDelete(item.id);
+                  }}
+                >
+                  <TrashIcon />
+                </button>
               </div>
             </div>
           </article>

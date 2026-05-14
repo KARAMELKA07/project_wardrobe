@@ -2,10 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { deleteItem, fetchItemById } from "../api/itemsApi";
-import {
-  getCategoryPlaceholderUrl,
-  resolveItemImageUrl,
-} from "../api/client";
+import { getCategoryPlaceholderUrl, resolveItemImageUrl } from "../api/client";
 import {
   getColorLabel,
   getFitLabel,
@@ -14,73 +11,14 @@ import {
   getSubcategoryLabel,
 } from "../data/clothingOptions";
 import useAuth from "../hooks/useAuth";
-import {
-  translateCategory,
-  translateFormality,
-  translateSeason,
-} from "../utils/i18n";
+import { PencilIcon, TrashIcon } from "../icons/AppIcons";
+import { translateCategory, translateFormality, translateSeason } from "../utils/i18n";
+
 
 function formatItemValue(value, fallback = "Не указано") {
   return value || fallback;
 }
 
-function EditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="item-detail-action-icon">
-      <path
-        d="M4 20h4.5L19 9.5 14.5 5 4 15.5V20Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12.5 7l4.5 4.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function DeleteIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="item-detail-action-icon">
-      <path
-        d="M5 7h14"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M9 7V5.5C9 4.67 9.67 4 10.5 4h3c.83 0 1.5.67 1.5 1.5V7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 7l.7 11.2c.05.76.68 1.35 1.45 1.35h3.7c.77 0 1.4-.59 1.45-1.35L16 7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M10 10.5v5M14 10.5v5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 export default function ClothingItemDetailsPage() {
   const { itemId } = useParams();
@@ -130,7 +68,7 @@ export default function ClothingItemDetailsPage() {
   if (loading) {
     return (
       <section className="page-section page-narrow">
-        <div className="card">Загрузка карточки вещи...</div>
+        <div className="surface-card">Загрузка карточки вещи...</div>
       </section>
     );
   }
@@ -138,7 +76,7 @@ export default function ClothingItemDetailsPage() {
   if (!item) {
     return (
       <section className="page-section page-narrow">
-        <div className="card empty-state">
+        <div className="surface-card empty-state">
           <p className="error-text">{error || "Вещь не найдена."}</p>
           <Link to="/wardrobe" className="secondary-button">
             Вернуться в гардероб
@@ -177,15 +115,11 @@ export default function ClothingItemDetailsPage() {
           <div className="item-detail-meta">
             <p>
               <strong>Цвета:</strong>{" "}
-              {item.colors?.length
-                ? item.colors.map(getColorLabel).join(", ")
-                : "Не указаны"}
+              {item.colors?.length ? item.colors.map(getColorLabel).join(", ") : "Не указаны"}
             </p>
             <p>
               <strong>Стили:</strong>{" "}
-              {item.styles?.length
-                ? item.styles.map(getStyleLabel).join(", ")
-                : "Не указаны"}
+              {item.styles?.length ? item.styles.map(getStyleLabel).join(", ") : "Не указаны"}
             </p>
             <p>
               <strong>Формальность:</strong> {translateFormality(item.formality)}
@@ -210,21 +144,21 @@ export default function ClothingItemDetailsPage() {
           <div className="item-detail-actions">
             <Link
               to={`/wardrobe/${item.id}/edit`}
-              className="item-detail-icon-button"
+              className="icon-button icon-button-large"
               aria-label="Редактировать вещь"
               title="Редактировать"
             >
-              <EditIcon />
+              <PencilIcon />
             </Link>
             <button
               type="button"
-              className="item-detail-icon-button item-detail-icon-button-danger"
+              className="icon-button icon-button-large"
               onClick={handleDelete}
               disabled={deleting}
               aria-label="Удалить вещь"
               title={deleting ? "Удаление..." : "Удалить"}
             >
-              <DeleteIcon />
+              <TrashIcon />
             </button>
           </div>
         </div>

@@ -1,9 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { getCategoryPlaceholderUrl, resolveAssetUrl, resolveItemImageUrl } from "../api/client";
 import { fetchSavedOutfits, uploadOutfitPhoto } from "../api/outfitsApi";
 import OutfitCard from "../components/OutfitCard";
 import useAuth from "../hooks/useAuth";
+
+
+function resolveOutfitPreview(outfit) {
+  if (outfit?.styled_photo_url) {
+    return resolveAssetUrl(outfit.styled_photo_url);
+  }
+
+  const firstItem = outfit?.items?.[0]?.clothing_item || outfit?.items?.[0];
+  if (firstItem) {
+    return resolveItemImageUrl(firstItem);
+  }
+
+  return getCategoryPlaceholderUrl("top");
+}
+
 
 export default function SavedOutfitsPage() {
   const { token } = useAuth();
@@ -24,7 +40,6 @@ export default function SavedOutfitsPage() {
         const response = await fetchSavedOutfits(token);
         setOutfits(response.outfits || []);
         setActiveIndex(0);
-        setIsModalOpen(Boolean(response.outfits?.length));
       } catch (requestError) {
         setError(requestError.message);
       } finally {
@@ -55,11 +70,9 @@ export default function SavedOutfitsPage() {
       const updatedOutfit = response.outfit;
 
       setOutfits((currentOutfits) =>
-        currentOutfits.map((entry) =>
-          entry.id === outfitId ? updatedOutfit : entry,
-        ),
+        currentOutfits.map((entry) => (entry.id === outfitId ? updatedOutfit : entry)),
       );
-      setMessage("Фото добавлено. Доска образа обновлена.");
+      setMessage("Фото добавлено. Карточка образа обновлена.");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -79,30 +92,29 @@ export default function SavedOutfitsPage() {
     );
   }
 
+  function openOutfit(index) {
+    setActiveIndex(index);
+    setIsModalOpen(true);
+  }
+
   return (
-    <section className="page-section">
-      <div className="section-heading">
+    <section className="page-section saved-outfits-page">
+      <div className="section-heading section-heading-stack">
         <div>
-          <p className="eyebrow">Избранное</p>
-          <h1>Сохранённые образы</h1>
-          <p className="muted-text">
-            Все сохранённые образы открываются как отдельные доски во всплывающем окне.
-          </p>
+          <h1>Сохраненные образы</h1>
         </div>
       </div>
 
       {error ? <p className="error-text">{error}</p> : null}
       {message ? <p className="muted-text">{message}</p> : null}
 
-      {loading ? (
-        <div className="card empty-state">Загружаем сохранённые образы...</div>
-      ) : null}
+      {loading ? <div className="surface-card empty-state">Загружаем сохраненные образы...</div> : null}
 
-      {!loading && !activeOutfit ? (
-        <div className="card empty-state">
-          <h3>Пока нет сохранённых образов</h3>
+      {!loading && !outfits.length ? (
+        <div className="surface-card empty-state">
+          <h3>Пока нет сохраненных образов</h3>
           <p className="muted-text">
-            Сначала сгенерируйте образы и нажмите на сердечко, чтобы сохранить лучший вариант.
+            Сначала сгенерируйте образы и сохраните понравившийся вариант.
           </p>
           <Link to="/generate" className="primary-button">
             Перейти к подбору образов
@@ -110,21 +122,26 @@ export default function SavedOutfitsPage() {
         </div>
       ) : null}
 
-      {!loading && activeOutfit && !isModalOpen ? (
-        <div className="card centered-card">
-          <h3>Сохранённые доски готовы</h3>
-          <p className="muted-text">
-            Откройте модальное окно, чтобы пролистать сохранённые образы.
-          </p>
+      <div className="saved-outfits-grid">
+        {outfits.map((outfit, index) => (
           <button
+            key={outfit.id || `${outfit.name}-${index}`}
             type="button"
-            className="primary-button"
-            onClick={() => setIsModalOpen(true)}
+            className="saved-outfit-card"
+            onClick={() => openOutfit(index)}
           >
-            Открыть сохранённые доски
+            <img
+              src={resolveOutfitPreview(outfit)}
+              alt={outfit.name}
+              className="saved-outfit-card-image"
+            />
+            <div className="saved-outfit-card-footer">
+              <span>{outfit.name}</span>
+              <span className="saved-outfit-card-mark" />
+            </div>
           </button>
-        </div>
-      ) : null}
+        ))}
+      </div>
 
       {isModalOpen && activeOutfit ? (
         <OutfitCard
