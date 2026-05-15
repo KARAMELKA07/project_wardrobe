@@ -61,8 +61,18 @@ uploads/*
 !uploads/placeholders/*.svg
 
 # ===== Local training artifacts / large files =====
+data/*
+!data/.gitkeep
 backend/.torch-cache/
 backend/training_logs/
+backend/training_runs/
 backend/model_artifacts/*
 !backend/model_artifacts/.gitkeep
 backend/Category and Attribute Prediction Benchmark/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.zip
+*.tar
+*.tar.gz
