@@ -1,65 +1,130 @@
-# Project Wardrobe MVP
+# Веб-сервис подбора образов и ведения гардероба
 
-MVP monorepo for a diploma project:
+Проект представляет собой веб-сервис для ведения цифрового гардероба, автоматической оцифровки вещей по фотографии и подбора образов с учетом погоды, события и пользовательских предпочтений.
 
-`Development of a web service for outfit and wardrobe selection using intelligent methods`
+В сервисе реализованы:
+- регистрация и авторизация пользователей;
+- ведение цифрового гардероба;
+- распознавание вещи по фото;
+- удаление фона изображения;
+- определение доминирующих цветов;
+- автозаполнение характеристик вещи;
+- подбор образов;
+- сохранение образов;
+- краткая аналитика гардероба;
+- подгрузка текущей погоды с внешнего сервиса.
 
-The project does **not** use LLMs. Outfit generation is based on a transparent recommendation engine that scores combinations using 10 features.
+## Технологии
 
-## Stack
+- Backend: `Python`, `Flask`, `SQLAlchemy`, `Flask-Migrate`, `JWT`
+- Frontend: `React`, `Vite`
+- База данных: `MySQL`
+- Хранение изображений: локальная папка `uploads/`
+- Модуль распознавания:
+  - `DeepFashion` для одежды;
+  - `FPID` для аксессуаров и проверки платьев;
+  - `Zappos` для обуви;
+  - `rembg` для удаления фона.
 
-- Backend: Python, Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-JWT-Extended
-- Database: MySQL
-- Frontend: React, JavaScript, Vite
-- Image storage: local `uploads/`
-- AI-assisted item digitization: `rembg` + local DeepFashion classifier + fallback zero-shot classifier + color extraction
-
-## Repository structure
+## Структура проекта
 
 ```text
-project-root/
-  backend/
-    app/
-      api/
-      config/
-      extensions/
-      models/
-      schemas/
-      services/
-      utils/
-    migrations/
-    requirements.txt
-    run.py
-  frontend/
-    src/
-      api/
-      components/
-      context/
-      hooks/
-      pages/
-      styles/
-    index.html
-    package.json
-    vite.config.js
-  uploads/
-  .env.example
-  README.md
+project_wardrobe/
+├─ backend/
+│  ├─ app/
+│  │  ├─ api/
+│  │  ├─ config/
+│  │  ├─ extensions/
+│  │  ├─ models/
+│  │  ├─ schemas/
+│  │  ├─ services/
+│  │  └─ utils/
+│  ├─ migrations/
+│  ├─ model_artifacts/
+│  ├─ scripts/
+│  ├─ tests/
+│  ├─ requirements.txt
+│  └─ run.py
+├─ frontend/
+│  ├─ public/
+│  ├─ src/
+│  ├─ package.json
+│  └─ vite.config.js
+├─ uploads/
+├─ demo_assets/
+│  └─ recognition_samples/
+├─ .env.example
+├─ .gitignore
+└─ README.md
 ```
 
-## Backend setup
+## Что важно для запуска после скачивания с GitHub
 
-### 1. Create a virtual environment and install dependencies
+Чтобы проект можно было поднять сразу после скачивания репозитория:
+- в репозитории должны лежать рабочие файлы моделей из папки `backend/model_artifacts/`;
+- датасет для обучения `DeepFashion` в репозиторий не добавляется;
+- пользовательские изображения, логи и runtime-данные в репозиторий не добавляются.
+
+Рабочие модели, которые используются приложением:
+- `backend/model_artifacts/deepfashion_classifier.pt`
+- `backend/model_artifacts/deepfashion_classifier.metadata.json`
+- `backend/model_artifacts/fpid_classifier.pt`
+- `backend/model_artifacts/fpid_classifier.metadata.json`
+- `backend/model_artifacts/zappos_classifier.pt`
+- `backend/model_artifacts/zappos_classifier.metadata.json`
+
+Если этих файлов нет, распознавание будет работать неполноценно или не будет работать так, как ожидается в демо.
+
+## Подготовка окружения
+
+### 1. Установить зависимости
+
+Нужно иметь:
+- `Python 3.11+`
+- `Node.js 20+`
+- `MySQL 8+`
+
+### 2. Настроить `.env`
+
+Скопируй файл:
 
 ```powershell
-cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+Copy-Item .env.example .env
 ```
 
-### 2. Create the MySQL database
+Минимально проверь и при необходимости измени:
 
-Example SQL:
+```env
+SECRET_KEY=replace-with-a-random-secret
+JWT_SECRET_KEY=replace-with-a-random-jwt-secret
+
+FLASK_DEBUG=true
+FLASK_RUN_HOST=0.0.0.0
+FLASK_RUN_PORT=5000
+FRONTEND_URL=http://localhost:5173
+
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=1234
+MYSQL_DB=wardrobe_mvp
+
+UPLOAD_FOLDER=uploads
+MAX_CONTENT_LENGTH=8388608
+
+FASHION_AI_ENABLED=true
+FASHION_AI_MODEL_ID=openai/clip-vit-base-patch32
+DEEPFASHION_DATASET_DIR=backend/Category and Attribute Prediction Benchmark
+DEEPFASHION_CHECKPOINT_PATH=backend/model_artifacts/deepfashion_classifier.pt
+DEEPFASHION_METADATA_PATH=backend/model_artifacts/deepfashion_classifier.metadata.json
+DEEPFASHION_CONFIDENCE_THRESHOLD=0.55
+
+VITE_API_URL=http://localhost:5000/api
+```
+
+## Настройка базы данных
+
+Создай базу данных в MySQL:
 
 ```sql
 CREATE DATABASE wardrobe_mvp
@@ -67,193 +132,145 @@ CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 ```
 
-### 3. Configure environment variables
-
-Copy the root example file:
+## Запуск backend
 
 ```powershell
-cd ..
-Copy-Item .env.example .env
-```
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 
-Update the values in `.env`:
-
-- `SECRET_KEY`
-- `JWT_SECRET_KEY`
-- `MYSQL_HOST`
-- `MYSQL_PORT`
-- `MYSQL_USER`
-- `MYSQL_PASSWORD`
-- `MYSQL_DB`
-- `FRONTEND_URL`
-- `VITE_API_URL`
-- `FASHION_AI_ENABLED`
-- `FASHION_AI_MODEL_ID`
-- `DEEPFASHION_DATASET_DIR`
-- `DEEPFASHION_CHECKPOINT_PATH`
-- `DEEPFASHION_METADATA_PATH`
-- `DEEPFASHION_CONFIDENCE_THRESHOLD`
-
-Note: the frontend is configured with `envDir: ".."`, so the root `.env` is used by both backend and frontend.
-
-### 4. Initialize and run migrations
-
-From the `backend/` directory:
-
-```powershell
 $env:FLASK_APP = "run.py"
-flask db init
-flask db migrate -m "Initial schema"
-flask db upgrade
-```
-
-After the first initialization, use only:
-
-```powershell
-flask db migrate -m "Describe your schema change"
-flask db upgrade
-```
-
-### 5. Run the Flask backend
-
-```powershell
+python -m flask db upgrade
 python run.py
 ```
 
-Backend default URL: [http://localhost:5000](http://localhost:5000)
+Backend будет доступен по адресу:
 
-Health check: [http://localhost:5000/health](http://localhost:5000/health)
+- [http://localhost:5000](http://localhost:5000)
+- health-check: [http://localhost:5000/health](http://localhost:5000/health)
 
-Note: if a trained local DeepFashion checkpoint is not connected yet, on the first call to image analysis the fallback zero-shot model may be downloaded automatically from Hugging Face. This can take additional time depending on internet speed.
-
-## Frontend setup
-
-### 1. Install dependencies
+## Запуск frontend
 
 ```powershell
 cd frontend
 npm install
-```
-
-### 2. Run the Vite dev server
-
-```powershell
 npm run dev
 ```
 
-Frontend default URL: [http://localhost:5173](http://localhost:5173)
+Frontend будет доступен по адресу:
 
-## Implemented MVP features
+- [http://localhost:5173](http://localhost:5173)
 
-- JWT auth: register, login, current user
-- Digital wardrobe CRUD with local image upload
-- Automatic background removal for uploaded clothing images
-- AI-assisted recognition of clothing type with auto-fill suggestions
-- Outfit generation from user items
-- 10-feature recommendation architecture with weighted scoring
-- Explainability without LLMs
-- Mock weather service
-- Basic wardrobe analytics
-- React dashboard, wardrobe pages, outfit generator, saved outfits, analytics
+## Что можно делать на сайте
 
-## Recommendation engine
+После запуска сервиса можно:
 
-The backend service `backend/app/services/recommendation_engine.py` contains 10 independent scoring functions:
+1. Зарегистрироваться или войти в систему.
+2. Добавлять вещи в гардероб.
+3. Загружать фото вещи и получать:
+   - распознавание типа вещи;
+   - удаление фона;
+   - определение цветов;
+   - автозаполнение характеристик.
+4. Просматривать карточки вещей.
+5. Редактировать и удалять вещи.
+6. Подбирать образы по событию, погоде, температуре и предпочтениям.
+7. Сохранять понравившиеся образы.
+8. Загружать фото пользователя в сохранённый образ.
+9. Смотреть аналитику по гардеробу.
 
-1. `ColorHarmony`
-2. `StyleMatch`
-3. `EventMatch`
-4. `SeasonMatch`
-5. `TemperatureMatch`
-6. `WeatherConditionMatch`
-7. `Completeness`
-8. `LayeringCorrectness`
-9. `UserPreferenceMatch`
-10. `ConstraintsMatch`
+## Как проверить распознавание
 
-Each feature returns a value from `0` to `1`. The final outfit score is a weighted sum of these feature values.
+Для проверки распознавания:
 
-## Main API routes
+1. Открой страницу создания вещи.
+2. Загрузи фотографию вещи.
+3. Дождись результата анализа.
+4. Проверь, что:
+   - определился тип вещи;
+   - определились цвета;
+   - подставились характеристики;
+   - в форме появились предложенные значения.
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/items`
-- `GET /api/items`
-- `GET /api/items/<id>`
-- `PUT /api/items/<id>`
-- `DELETE /api/items/<id>`
-- `POST /api/items/upload`
-- `POST /api/items/analyze-image`
-- `POST /api/outfits/generate`
-- `POST /api/outfits`
-- `GET /api/outfits`
-- `POST /api/outfits/<id>/feedback`
-- `GET /api/analytics/summary`
+Для демонстрационных изображений можно использовать папку:
 
-## Notes for further development
+- `demo_assets/recognition_samples/`
 
-- `MockWeatherService` can be replaced with a real weather API later.
-- The current image recognition module first tries to use a local DeepFashion-based checkpoint and then falls back to a zero-shot model if needed.
-- User preference editing can be added as a separate profile/settings module.
-- The scoring rules and weights are intentionally simple and readable for an MVP and diploma extension work.
+Туда удобно положить:
+- примеры одежды;
+- примеры обуви;
+- примеры аксессуаров;
+- отдельные спорные кейсы для демонстрации качества распознавания.
 
-## DeepFashion-based item analysis
+## Демо-аккаунт
 
-When a user selects a clothing image in the add/edit form, the frontend sends the file to `POST /api/items/analyze-image`.
+Этот блок можно заполнить позже, когда ты создашь тестовый аккаунт:
 
-The backend then:
-
-1. removes the background with `rembg`;
-2. tries to classify the item with a local DeepFashion-based model;
-3. if the local model is unavailable or gives low confidence, uses a zero-shot fallback classifier;
-4. extracts dominant colors from the processed image;
-5. returns suggestions for:
-   - `category`
-   - `subcategory`
-   - `colors`
-   - `styles`
-   - `season`
-   - `formality`
-   - `fit`
-   - `layer_level`
-   - `insulation_rating`
-   - `waterproof`
-   - `windproof`
-
-The user can review the suggested values before saving the item. If the "remove background on save" option is enabled, the saved image in `uploads/` will be the processed image with removed background.
-
-## Training a local DeepFashion classifier
-
-The project already contains a training pipeline for **DeepFashion Category and Attribute Prediction Benchmark**.
-
-Expected dataset directory:
-
-`backend/Category and Attribute Prediction Benchmark`
-
-Required contents:
-
-- `Anno_coarse/`
-- `Eval/`
-- `img/` or `Img/img/`
-
-Important: annotation files alone are not enough. You must also unpack `Clothes Images`.
-
-Run training from `backend/`:
-
-```powershell
-.\.venv\Scripts\python.exe scripts\train_deepfashion_classifier.py
+```text
+Логин:
+Пароль:
 ```
 
-After training, the project will create:
+## Где хранятся данные
 
-- `backend/model_artifacts/deepfashion_classifier.pt`
-- `backend/model_artifacts/deepfashion_classifier.metadata.json`
+### Новые аккаунты
 
-Then restart the backend:
+Новые аккаунты сохраняются в таблице `users` базы данных `MySQL`, указанной в `.env`.
 
-```powershell
-.\.venv\Scripts\python.exe run.py
-```
+Основные поля пользователя:
+- `email`
+- `password_hash`
+- `name`
+- `city`
 
-From this point, image analysis will use the local DeepFashion classifier first and only then fall back to the zero-shot model if needed.
+### Наполнение аккаунта
+
+Наполнение пользователя тоже хранится в `MySQL`:
+
+- вещи — в таблице `clothing_items`
+- сохранённые образы — в таблице `outfits`
+- состав образов — в таблице `outfit_items`
+- обратная связь по образам — в таблице `outfit_feedback`
+- предпочтения пользователя — в таблице `user_preferences`
+
+То есть логин и весь “содержательный” профиль пользователя лежат в базе данных.
+
+### Изображения
+
+Изображения вещей и пользовательские фото сохраняются в локальную папку:
+
+- `uploads/`
+
+Туда попадают:
+- фото вещей;
+- обработанные изображения без фона;
+- фото пользователя в образе.
+
+В базе данных при этом хранится путь к файлу, например в поле `image_url` у вещи или `styled_photo_url` у образа.
+
+### Модели распознавания
+
+Файлы обученных моделей лежат в:
+
+- `backend/model_artifacts/`
+
+### Логи распознавания
+
+Логи результатов моделей сохраняются в:
+
+- `backend/logs/fashion_model_predictions.jsonl`
+
+## Что не хранится в GitHub
+
+В репозиторий не должны попадать:
+- датасет `DeepFashion`;
+- кэш обучения;
+- временные логи;
+- локальные пользовательские изображения;
+- виртуальные окружения;
+- `node_modules`.
+
+## Планы на развитие
+
+В дальнейшем проект планируется подготовить к контейнеризации через `Docker`, чтобы запускать backend, frontend и базу данных в согласованной среде без ручной настройки на каждой машине.

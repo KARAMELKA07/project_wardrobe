@@ -1,0 +1,132 @@
+{
+  "architecture": "efficientnet_b0",
+  "class_names": [
+    "ankle_boots",
+    "boots",
+    "flats",
+    "pumps",
+    "sandals",
+    "shoes",
+    "slippers",
+    "sneakers"
+  ],
+  "best_val_accuracy": 0.7918,
+  "manifest_path": "C:\\Users\\zakir\\project_wardrobe\\data\\processed\\wardrobe_training\\manifest.csv",
+  "train_samples": 42524,
+  "val_samples": 7501,
+  "source_dataset": "Wardrobe manifest classifier (Zappos, iFashion-ready)",
+  "source_counts": {
+    "zappos": 50025
+  },
+  "label_counts": {
+    "sneakers": 13497,
+    "boots": 6977,
+    "shoes": 6975,
+    "ankle_boots": 5855,
+    "sandals": 5741,
+    "pumps": 5703,
+    "flats": 3994,
+    "slippers": 1283
+  },
+  "pretrained_backbone": true,
+  "freeze_backbone": true,
+  "history": [
+    {
+      "event": "epoch",
+      "epoch": 1,
+      "epochs": 8,
+      "train_loss": 1.134169,
+      "train_accuracy": 0.636887,
+      "val_loss": 0.784832,
+      "val_accuracy": 0.7495,
+      "best_val_accuracy": 0.7495,
+      "is_best": true,
+      "seconds": 485.72
+    },
+    {
+      "event": "epoch",
+      "epoch": 2,
+      "epochs": 8,
+      "train_loss": 0.820456,
+      "train_accuracy": 0.728106,
+      "val_loss": 0.698196,
+      "val_accuracy": 0.765365,
+      "best_val_accuracy": 0.765365,
+      "is_best": true,
+      "seconds": 161.5
+    },
+    {
+      "event": "epoch",
+      "epoch": 3,
+      "epochs": 8,
+      "train_loss": 0.756069,
+      "train_accuracy": 0.742734,
+      "val_loss": 0.659225,
+      "val_accuracy": 0.77603,
+      "best_val_accuracy": 0.77603,
+      "is_best": true,
+      "seconds": 161.17
+    },
+    {
+      "event": "epoch",
+      "epoch": 4,
+      "epochs": 8,
+      "train_loss": 0.729271,
+      "train_accuracy": 0.747484,
+      "val_loss": 0.626573,
+      "val_accuracy": 0.784562,
+      "best_val_accuracy": 0.784562,
+      "is_best": true,
+      "seconds": 161.35
+    },
+    {
+      "event": "epoch",
+      "epoch": 5,
+      "epochs": 8,
+      "train_loss": 0.713045,
+      "train_accuracy": 0.754115,
+      "val_loss": 0.614897,
+      "val_accuracy": 0.785229,
+      "best_val_accuracy": 0.785229,
+      "is_best": true,
+      "seconds": 161.1
+    },
+    {
+      "event": "epoch",
+      "epoch": 6,
+      "epochs": 8,
+      "train_loss": 0.701028,
+      "train_accuracy": 0.760159,
+      "val_loss": 0.61523,
+      "val_accuracy": 0.788028,
+      "best_val_accuracy": 0.788028,
+      "is_best": true,
+      "seconds": 162.83
+    },
+    {
+      "event": "epoch",
+      "epoch": 7,
+      "epochs": 8,
+      "train_loss": 0.686939,
+      "train_accuracy": 0.763875,
+      "val_loss": 0.603003,
+      "val_accuracy": 0.788562,
+      "best_val_accuracy": 0.788562,
+      "is_best": true,
+      "seconds": 161.0
+    },
+    {
+      "event": "epoch",
+      "epoch": 8,
+      "epochs": 8,
+      "train_loss": 0.681961,
+      "train_accuracy": 0.763616,
+      "val_loss": 0.597181,
+      "val_accuracy": 0.791761,
+      "best_val_accuracy": 0.791761,
+      "is_best": true,
+      "seconds": 161.42
+    }
+  ],
+  "training_seconds": 1616.38
+}

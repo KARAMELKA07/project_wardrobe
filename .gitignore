@@ -66,8 +66,6 @@ data/*
 backend/.torch-cache/
 backend/training_logs/
 backend/training_runs/
-backend/model_artifacts/*
-!backend/model_artifacts/.gitkeep
 backend/Category and Attribute Prediction Benchmark/
 *.pt
 *.pth
@@ -76,3 +74,13 @@ backend/Category and Attribute Prediction Benchmark/
 *.zip
 *.tar
 *.tar.gz
+
+# ===== Runtime artifacts that should stay in repo =====
+!backend/model_artifacts/
+!backend/model_artifacts/.gitkeep
+!backend/model_artifacts/*.pt
+!backend/model_artifacts/*.metadata.json
+
+# ===== Demo materials =====
+demo_assets/recognition_samples/*
+!demo_assets/recognition_samples/.gitkeep

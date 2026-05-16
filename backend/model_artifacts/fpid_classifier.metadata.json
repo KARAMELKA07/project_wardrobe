@@ -1,0 +1,79 @@
+{
+  "architecture": "efficientnet_b0",
+  "class_names": [
+    "bag",
+    "belt",
+    "bracelet",
+    "dress",
+    "earrings",
+    "hat",
+    "jacket",
+    "jeans",
+    "jewelry",
+    "joggers",
+    "kurta",
+    "leggings",
+    "necklace",
+    "sandals",
+    "scarf",
+    "shirt",
+    "shoes",
+    "shorts",
+    "skirt",
+    "sleepwear",
+    "sneakers",
+    "socks",
+    "sunglasses",
+    "sweater",
+    "sweatshirt",
+    "t_shirt",
+    "tie",
+    "top",
+    "trousers",
+    "tunic",
+    "underwear",
+    "wallet",
+    "watch"
+  ],
+  "best_val_accuracy": 0.9148,
+  "dataset_dir": "C:\\Users\\zakir\\project_wardrobe\\data\\raw\\fpid_full\\fashion-dataset",
+  "train_samples": 34576,
+  "val_samples": 6083,
+  "source_dataset": "Fashion Product Images",
+  "pretrained_backbone": true,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.578393,
+      "train_accuracy": 0.831675,
+      "val_loss": 0.327217,
+      "val_accuracy": 0.891008,
+      "seconds": 1597.81
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.269657,
+      "train_accuracy": 0.91014,
+      "val_loss": 0.283032,
+      "val_accuracy": 0.904981,
+      "seconds": 1339.91
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.211443,
+      "train_accuracy": 0.92839,
+      "val_loss": 0.326312,
+      "val_accuracy": 0.896433,
+      "seconds": 1298.58
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.172765,
+      "train_accuracy": 0.939235,
+      "val_loss": 0.269469,
+      "val_accuracy": 0.914845,
+      "seconds": 1303.43
+    }
+  ],
+  "training_seconds": 5539.89
+}

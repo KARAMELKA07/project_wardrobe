@@ -1,0 +1,48 @@
+{
+  "architecture": "efficientnet_b0",
+  "class_names": [
+    "ankle_boots",
+    "boots",
+    "flats",
+    "pumps",
+    "sandals",
+    "shoes",
+    "slippers",
+    "sneakers"
+  ],
+  "best_val_accuracy": 0.125,
+  "manifest_path": "C:\\Users\\zakir\\project_wardrobe\\data\\processed\\wardrobe_training_smoke\\manifest.csv",
+  "train_samples": 24,
+  "val_samples": 8,
+  "source_dataset": "Wardrobe manifest classifier (Zappos, iFashion-ready)",
+  "source_counts": {
+    "zappos": 32
+  },
+  "label_counts": {
+    "ankle_boots": 4,
+    "pumps": 4,
+    "slippers": 4,
+    "sneakers": 4,
+    "sandals": 4,
+    "shoes": 4,
+    "boots": 4,
+    "flats": 4
+  },
+  "pretrained_backbone": false,
+  "freeze_backbone": false,
+  "history": [
+    {
+      "event": "epoch",
+      "epoch": 1,
+      "epochs": 1,
+      "train_loss": 2.097504,
+      "train_accuracy": 0.208333,
+      "val_loss": 2.079782,
+      "val_accuracy": 0.125,
+      "best_val_accuracy": 0.125,
+      "is_best": true,
+      "seconds": 1.57
+    }
+  ],
+  "training_seconds": 1.67
+}

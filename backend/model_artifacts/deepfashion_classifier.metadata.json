@@ -1,0 +1,31 @@
+{
+  "architecture": "efficientnet_b0",
+  "class_names": [
+    "blazer",
+    "blouse",
+    "cardigan",
+    "chinos",
+    "coat",
+    "crop_top",
+    "culottes",
+    "hoodie",
+    "jacket",
+    "jeans",
+    "joggers",
+    "leggings",
+    "longsleeve",
+    "parka",
+    "shirt",
+    "shorts",
+    "skirt",
+    "sweater",
+    "t_shirt",
+    "trousers",
+    "turtleneck"
+  ],
+  "best_val_accuracy": 0.6878,
+  "dataset_dir": "C:\\Users\\zakir\\github projects\\project_wardrobe\\backend\\Category and Attribute Prediction Benchmark",
+  "train_samples": 143716,
+  "val_samples": 27468,
+  "source_dataset": "DeepFashion Category and Attribute Prediction Benchmark"
+}
