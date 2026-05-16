@@ -426,6 +426,14 @@ export function getLayerLevelLabel(value) {
   return LAYER_LEVEL_LABELS[normalizeValue(value)] || value || "";
 }
 
+export function getInsulationLabel(value) {
+  return (
+    INSULATION_OPTIONS.find((option) => option.value === String(value ?? ""))?.label
+    || value
+    || ""
+  );
+}
+
 export function getItemMetadataSupport(category) {
   return (
     ITEM_METADATA_SUPPORT[normalizeCatalogValue(category)] || {

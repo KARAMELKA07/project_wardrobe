@@ -4,6 +4,7 @@ import { getCategoryPlaceholderUrl, resolveItemImageUrl } from "../api/client";
 import {
   getColorLabel,
   getFitLabel,
+  getInsulationLabel,
   getItemMetadataSupport,
   getLayerLevelLabel,
   getStyleLabel,
@@ -12,9 +13,11 @@ import {
 import { PencilIcon, TrashIcon } from "../icons/AppIcons";
 import { translateCategory, translateFormality, translateSeason } from "../utils/i18n";
 
+
 function formatItemValue(value, fallback = "Не указано") {
   return value || fallback;
 }
+
 
 export default function ClothingItemDetailsCard({
   item,
@@ -70,7 +73,8 @@ export default function ClothingItemDetailsCard({
           ) : null}
           {metadataSupport.supportsInsulation ? (
             <p>
-              <strong>Утепление:</strong> {item.insulation_rating ?? 0}
+              <strong>Утепление:</strong>{" "}
+              {formatItemValue(getInsulationLabel(item.insulation_rating))}
             </p>
           ) : null}
           {metadataSupport.supportsWaterproof ? (

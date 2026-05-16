@@ -30,6 +30,14 @@ export default function ClothingItemDetailsModal() {
     loadItem();
   }, [itemId, token]);
 
+  useEffect(() => {
+    document.body.classList.add("item-detail-modal-active");
+
+    return () => {
+      document.body.classList.remove("item-detail-modal-active");
+    };
+  }, []);
+
   async function handleDelete() {
     if (!itemId) {
       return;

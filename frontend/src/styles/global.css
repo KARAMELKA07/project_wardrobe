@@ -225,7 +225,7 @@ p {
 
 .weather-bar {
     display: grid;
-    grid-template-columns: 160px 1fr 80px 128px;
+    grid-template-columns: 2fr 2fr 1fr 2fr;
     align-items: center;
     width: 100%;
     min-width: 0;
@@ -233,6 +233,7 @@ p {
     padding: 0 0 0 24px;
     border-radius: 18px;
     background: var(--surface-muted);
+    max-width: 1000px;
 }
 
 .weather-bar-city,
@@ -493,6 +494,24 @@ p {
     color: var(--text-inverse);
 }
 
+.file-upload-button {
+    position: relative;
+    color: transparent;
+}
+
+    .file-upload-button::after {
+        content: "Выберите файл";
+        position: absolute;
+        inset: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-inverse);
+        font-size: 18px;
+        font-weight: 500;
+        pointer-events: none;
+    }
+
     .secondary-button:hover,
     .file-upload-button:hover {
         background: var(--surface-strong-hover);
@@ -590,6 +609,10 @@ p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 22px 26px;
 }
+
+    .form-grid > * {
+        align-self: start;
+    }
 
 .full-width {
     grid-column: 1 / -1;
@@ -1225,6 +1248,11 @@ select:-webkit-autofill:focus {
     padding: 24px;
     background: var(--overlay);
     backdrop-filter: blur(12px);
+}
+
+body.item-detail-modal-active .outfit-modal-backdrop {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .outfit-modal-window {
