@@ -78,7 +78,6 @@ export default function WardrobePage() {
         <div className="overview-banner-copy">
           <p>{bannerText}</p>
         </div>
-        <div className="overview-banner-accent" />
       </section>
 
       {loading ? <div className="surface-card">Загрузка гардероба...</div> : null}

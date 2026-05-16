@@ -159,7 +159,8 @@ class RecommendationEngineTests(unittest.TestCase):
 
         outfit = self.engine.evaluate_outfit(candidate, self.request_context, {})
 
-        self.assertEqual(len(outfit["feature_scores"]), 10)
+        self.assertEqual(len(outfit["feature_scores"]), 11)
+        self.assertIn("item_type_compatibility", outfit["feature_scores"])
         self.assertIn("reasons", outfit)
         self.assertIn("explanation", outfit)
         self.assertGreaterEqual(outfit["score"], 0.0)
@@ -272,6 +273,147 @@ class RecommendationEngineTests(unittest.TestCase):
 
         self.assertGreater(warm_score, cold_score)
         self.assertGreaterEqual(warm_score, 0.85)
+
+
+    def test_hot_weather_rejects_warm_sweater_with_shorts_and_slippers(self):
+        hot_context = {
+            **self.request_context,
+            "temperature": 23,
+            "weather_condition": "sunny",
+            "season": "summer",
+        }
+        items = [
+            build_item(1, "Warm sweater", "top", "sweater", ["gray"], ["casual"], "autumn", "casual", insulation_rating=1.5),
+            build_item(2, "Denim shorts", "bottom", "shorts", ["blue"], ["casual"], "summer", "casual", insulation_rating=0.2),
+            build_item(3, "Beach slippers", "shoes", "slippers", ["black"], ["casual"], "summer", "casual", insulation_rating=0.1),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, hot_context)
+
+        self.assertEqual(candidates, [])
+
+    def test_hot_weather_rejects_heavy_outerwear_but_keeps_base_outfit(self):
+        hot_context = {
+            **self.request_context,
+            "temperature": 25,
+            "weather_condition": "sunny",
+            "season": "summer",
+        }
+        items = [
+            build_item(1, "White tee", "top", "t-shirt", ["white"], ["casual"], "summer", "casual", insulation_rating=0.3),
+            build_item(2, "Blue shorts", "bottom", "shorts", ["blue"], ["casual"], "summer", "casual", insulation_rating=0.2),
+            build_item(3, "Sandals", "shoes", "sandals", ["brown"], ["casual"], "summer", "casual", insulation_rating=0.1),
+            build_item(4, "Black coat", "outerwear", "coat", ["black"], ["classic"], "winter", "formal", insulation_rating=2.5),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, hot_context)
+
+        self.assertTrue(candidates)
+        self.assertTrue(all("outerwear" not in {entry["role"] for entry in candidate} for candidate in candidates))
+
+    def test_light_summer_outfit_passes_in_hot_weather(self):
+        hot_context = {
+            **self.request_context,
+            "temperature": 28,
+            "weather_condition": "sunny",
+            "season": "summer",
+        }
+        items = [
+            build_item(1, "White tee", "top", "t-shirt", ["white"], ["casual"], "summer", "casual", insulation_rating=0.3),
+            build_item(2, "Beige shorts", "bottom", "shorts", ["beige"], ["casual"], "summer", "casual", insulation_rating=0.2),
+            build_item(3, "Brown sandals", "shoes", "sandals", ["brown"], ["casual"], "summer", "casual", insulation_rating=0.1),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, hot_context)
+
+        self.assertTrue(candidates)
+
+    def test_cold_weather_rejects_shorts_and_slippers(self):
+        cold_context = {
+            **self.request_context,
+            "temperature": 8,
+            "weather_condition": "cloudy",
+            "season": "autumn",
+        }
+        items = [
+            build_item(1, "White tee", "top", "t-shirt", ["white"], ["casual"], "summer", "casual"),
+            build_item(2, "Blue shorts", "bottom", "shorts", ["blue"], ["casual"], "summer", "casual"),
+            build_item(3, "Slippers", "shoes", "slippers", ["black"], ["casual"], "summer", "casual"),
+            build_item(4, "Light jacket", "outerwear", "jacket", ["gray"], ["casual"], "autumn", "casual"),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, cold_context)
+
+        self.assertEqual(candidates, [])
+
+    def test_warm_weather_rejects_boots_with_shorts(self):
+        warm_context = {
+            **self.request_context,
+            "temperature": 22,
+            "weather_condition": "sunny",
+            "season": "summer",
+        }
+        items = [
+            build_item(1, "White tee", "top", "t-shirt", ["white"], ["casual"], "summer", "casual"),
+            build_item(2, "Blue shorts", "bottom", "shorts", ["blue"], ["casual"], "summer", "casual"),
+            build_item(3, "Black boots", "shoes", "boots", ["black"], ["casual"], "winter", "casual"),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, warm_context)
+
+        self.assertEqual(candidates, [])
+
+    def test_rain_rejects_slippers(self):
+        rainy_context = {
+            **self.request_context,
+            "temperature": 18,
+            "weather_condition": "rain",
+            "season": "spring",
+        }
+        items = [
+            build_item(1, "White tee", "top", "t-shirt", ["white"], ["casual"], "summer", "casual"),
+            build_item(2, "Blue jeans", "bottom", "jeans", ["blue"], ["casual"], "all-season", "casual"),
+            build_item(3, "Slippers", "shoes", "slippers", ["black"], ["casual"], "summer", "casual"),
+            build_item(4, "Rain jacket", "outerwear", "windbreaker", ["gray"], ["casual"], "spring", "casual", waterproof=True),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, rainy_context)
+
+        self.assertEqual(candidates, [])
+
+    def test_snow_rejects_sneakers(self):
+        snowy_context = {
+            **self.request_context,
+            "temperature": -2,
+            "weather_condition": "snow",
+            "season": "winter",
+        }
+        items = [
+            build_item(1, "Warm sweater", "top", "sweater", ["gray"], ["casual"], "winter", "casual", insulation_rating=1.5),
+            build_item(2, "Blue jeans", "bottom", "jeans", ["blue"], ["casual"], "winter", "casual"),
+            build_item(3, "White sneakers", "shoes", "sneakers", ["white"], ["casual"], "spring", "casual"),
+            build_item(4, "Warm coat", "outerwear", "coat", ["black"], ["classic"], "winter", "formal"),
+        ]
+
+        candidates = self.engine.generate_candidate_outfits(items, snowy_context)
+
+        self.assertEqual(candidates, [])
+
+    def test_generate_does_not_return_outfits_that_only_change_accessory(self):
+        items = [
+            build_item(1, "White tee", "top", "t-shirt", ["white"], ["casual"], "summer", "casual"),
+            build_item(2, "Blue jeans", "bottom", "jeans", ["blue"], ["casual"], "all-season", "casual"),
+            build_item(3, "White sneakers", "shoes", "sneakers", ["white"], ["casual"], "spring", "casual"),
+        ]
+        items.extend(
+            build_item(10 + index, f"Bag {index}", "accessory", "bag", ["black"], ["minimal"], "all-season", "smart")
+            for index in range(8)
+        )
+
+        results = self.engine.generate(items, self.request_context, limit=5)
+        core_keys = [self.engine._get_outfit_core_key(outfit) for outfit in results]
+
+        self.assertEqual(len(core_keys), len(set(core_keys)))
 
     def test_color_harmony_scores_all_neutral_outfit_high(self):
         candidate = self.make_candidate(

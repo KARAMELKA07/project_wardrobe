@@ -424,33 +424,7 @@ export default function ClothingItemForm({
             </label>
           ) : null}
 
-          <div className="field-block image-field">
-            <div className="field-heading">
-              <span className="field-label">Изображение вещи</span>
-            </div>
-            <label className="file-upload-button">
-              <input
-                type="file"
-                accept=".png,.jpg,.jpeg,.webp"
-                onChange={handleImageSelection}
-                hidden
-              />
-              {imageFile ? imageFile.name : "Выберите файл"}
-            </label>
-            {previewUrl ? (
-              <div className="image-preview-card">
-                <img
-                  src={previewUrl}
-                  alt={formValues.title || "Предпросмотр вещи"}
-                  className="image-preview"
-                />
-                <div className="image-preview-meta">
-                  <strong>{imageFile ? "Новое изображение" : "Текущее изображение"}</strong>
-                  <span>{imageFile?.name || "Изображение уже сохранено"}</span>
-                </div>
-              </div>
-            ) : null}
-          </div>
+          
 
           {metadataSupport.supportsWaterproof || metadataSupport.supportsWindproof ? (
             <div className="field-block protection-field">
@@ -534,7 +508,32 @@ export default function ClothingItemForm({
                 );
               })}
             </div>
-          </div>
+                  </div>
+
+                  <div className="field-block image-field full-width">
+                      <div className="field-heading">
+                          <span className="field-label">Изображение вещи</span>
+                      </div>
+                      <div className={previewUrl ? "image-field-row has-preview" : "image-field-row"}>
+                          <label className="file-upload-button">
+                              <input
+                                  type="file"
+                                  accept=".png,.jpg,.jpeg,.webp"
+                                  onChange={handleImageSelection}
+                                  hidden
+                              />
+                              {imageFile ? imageFile.name : "Выберите файл"}
+                          </label>
+                          {previewUrl ? (
+                              <div className="image-preview-card">
+                                  <div className="image-preview-meta">
+                                      <strong>{imageFile ? "Новое изображение" : "Текущее изображение"}</strong>
+                                      <span>{imageFile?.name || "Изображение уже сохранено"}</span>
+                                  </div>
+                              </div>
+                          ) : null}
+                      </div>
+                  </div>
 
           <div className="field-block full-width">
             <div className="field-heading">

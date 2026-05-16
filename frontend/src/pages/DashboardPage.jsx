@@ -70,7 +70,6 @@ export default function DashboardPage() {
                 <div className="overview-banner-copy">
                     <p>{statusText}</p>
                 </div>
-                <div className="overview-banner-accent" />
             </section>
 
             <div className="stats-grid stats-grid-dashboard">

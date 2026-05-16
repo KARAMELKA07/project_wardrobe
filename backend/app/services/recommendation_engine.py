@@ -3,16 +3,17 @@ from itertools import combinations, product
 
 
 FEATURE_WEIGHTS = {
-    "color_harmony": 0.15,
-    "style_match": 0.15,
-    "event_match": 0.15,
-    "season_match": 0.1,
-    "temperature_match": 0.1,
-    "weather_condition_match": 0.1,
-    "layering_correctness": 0.08,
-    "completeness": 0.06,
-    "user_preference_match": 0.06,
-    "constraints_match": 0.05,
+    "color_harmony": 0.12,
+    "style_match": 0.13,
+    "event_match": 0.14,
+    "season_match": 0.08,
+    "temperature_match": 0.16,
+    "weather_condition_match": 0.14,
+    "item_type_compatibility": 0.12,
+    "layering_correctness": 0.06,
+    "completeness": 0.03,
+    "user_preference_match": 0.02,
+    "constraints_match": 0.0,
 }
 
 ROLE_ORDER = {
@@ -156,9 +157,15 @@ ROLE_COLOR_WEIGHTS = {
     "item": 2.0,
 }
 COLOR_SHARE_WEIGHTS = (0.7, 0.2, 0.1)
-MAX_PRIMARY_POOL = 12
-MAX_OUTERWEAR_POOL = 6
-MAX_ACCESSORY_POOL = 3
+MAX_PRIMARY_POOL = 18
+MAX_OUTERWEAR_POOL = 8
+MAX_ACCESSORY_POOL = 8
+MIN_DIVERSE_OUTFIT_SCORE = 0.65
+HOT_TEMPERATURE = 25
+WARM_TEMPERATURE = 21
+MILD_TEMPERATURE = 15
+COOL_TEMPERATURE = 6
+COLD_TEMPERATURE = 0
 EVENT_LABELS = {
     "office": "офис",
     "casual": "повседневный выход",
@@ -185,15 +192,16 @@ SHOE_SUBCATEGORY_ALIASES = {
 WINTER_SHOE_TYPES = {"boots"}
 COLD_SHOE_TYPES = WINTER_SHOE_TYPES | {"ankle_boots", "shoes", "sneakers"}
 MID_SHOE_TYPES = {"ankle_boots", "boots", "flats", "pumps", "shoes", "sneakers"}
-HOT_SHOE_TYPES = {"sandals", "slippers", "sneakers"}
+HOT_SHOE_TYPES = {"sandals", "slippers", "sneakers", "flats", "shoes"}
 OPEN_SHOE_TYPES = {"sandals", "slippers"}
 RAIN_SAFE_SHOE_TYPES = COLD_SHOE_TYPES | {"sneakers"}
 SNOW_SAFE_SHOE_TYPES = {"ankle_boots", "boots"}
 WARM_TOP_TYPES = {"sweater", "hoodie", "cardigan", "turtleneck", "sweatshirt"}
-LIGHT_TOP_TYPES = {"t_shirt", "shirt", "blouse", "crop_top", "polo"}
+LIGHT_TOP_TYPES = {"t_shirt", "shirt", "blouse", "crop_top", "polo", "top", "tunic"}
 WARM_BOTTOM_TYPES = {"jeans", "trousers", "joggers", "leggings", "culottes"}
 LIGHT_BOTTOM_TYPES = {"shorts", "mini_skirt"}
 HEAVY_OUTERWEAR_TYPES = {"coat", "parka", "down_jacket"}
+HOT_FORBIDDEN_OUTERWEAR_TYPES = HEAVY_OUTERWEAR_TYPES | {"jacket", "leather_jacket", "trench"}
 LIGHT_OUTERWEAR_TYPES = {
     "jacket",
     "trench",
@@ -202,6 +210,9 @@ LIGHT_OUTERWEAR_TYPES = {
     "windbreaker",
     "vest_outerwear",
 }
+HOT_FORBIDDEN_SHOE_TYPES = {"boots", "ankle_boots"}
+COLD_FORBIDDEN_SHOE_TYPES = OPEN_SHOE_TYPES
+COLD_FORBIDDEN_BOTTOM_TYPES = {"shorts", "mini_skirt"}
 
 EVENT_RULES = {
     "casual": {
@@ -350,6 +361,43 @@ EVENT_DISALLOWED_SUBCATEGORIES = {
     "sport": {"blazer", "coat", "pumps", "shoes"},
 }
 
+TOP_BOTTOM_COMPATIBILITY = {
+    "shirt": {"trousers", "jeans", "skirt", "midi_skirt", "maxi_skirt", "culottes"},
+    "blouse": {"trousers", "skirt", "midi_skirt", "maxi_skirt", "jeans", "culottes"},
+    "t_shirt": {"jeans", "shorts", "skirt", "mini_skirt", "joggers", "leggings"},
+    "top": {"jeans", "shorts", "skirt", "mini_skirt", "midi_skirt"},
+    "crop_top": {"jeans", "shorts", "skirt", "mini_skirt"},
+    "polo": {"jeans", "shorts", "trousers", "chinos"},
+    "sweater": {"jeans", "trousers", "skirt", "midi_skirt", "leggings"},
+    "hoodie": {"jeans", "joggers", "leggings"},
+    "sweatshirt": {"jeans", "joggers", "leggings", "shorts"},
+    "turtleneck": {"jeans", "trousers", "skirt", "midi_skirt"},
+    "cardigan": {"jeans", "trousers", "skirt", "midi_skirt", "dress"},
+}
+BOTTOM_SHOE_COMPATIBILITY = {
+    "jeans": {"sneakers", "boots", "ankle_boots", "flats", "shoes", "sandals"},
+    "trousers": {"pumps", "flats", "shoes", "ankle_boots", "boots", "sneakers"},
+    "chinos": {"sneakers", "flats", "shoes", "sandals"},
+    "joggers": {"sneakers", "boots"},
+    "leggings": {"sneakers", "boots", "ankle_boots"},
+    "skirt": {"pumps", "flats", "sandals", "ankle_boots", "boots", "sneakers"},
+    "mini_skirt": {"pumps", "flats", "sandals", "ankle_boots", "boots", "sneakers"},
+    "midi_skirt": {"pumps", "flats", "sandals", "ankle_boots", "boots", "sneakers"},
+    "maxi_skirt": {"pumps", "flats", "sandals", "ankle_boots", "boots", "sneakers"},
+    "shorts": {"sneakers", "sandals", "slippers", "flats"},
+}
+DRESS_SHOE_COMPATIBILITY = {"pumps", "flats", "sandals", "ankle_boots", "boots", "sneakers", "shoes"}
+OUTERWEAR_BASE_COMPATIBILITY = {
+    "blazer": {"shirt", "blouse", "top", "turtleneck", "dress", "trousers", "skirt", "jeans"},
+    "trench": {"shirt", "blouse", "top", "dress", "trousers", "skirt", "jeans"},
+    "leather_jacket": {"t_shirt", "shirt", "top", "dress", "jeans", "skirt"},
+    "coat": {"sweater", "turtleneck", "shirt", "blouse", "dress", "trousers", "jeans", "skirt"},
+    "parka": {"sweater", "hoodie", "sweatshirt", "turtleneck", "jeans", "trousers", "leggings"},
+    "down_jacket": {"sweater", "hoodie", "sweatshirt", "turtleneck", "jeans", "trousers", "leggings"},
+    "windbreaker": {"t_shirt", "shirt", "hoodie", "sweatshirt", "joggers", "leggings", "jeans", "shorts"},
+    "jacket": {"t_shirt", "shirt", "blouse", "top", "sweater", "jeans", "trousers", "skirt", "dress"},
+}
+
 
 class RecommendationEngine:
     def __init__(self, weights=None):
@@ -363,7 +411,7 @@ class RecommendationEngine:
         ]
         ranked_outfits.sort(key=lambda outfit: outfit["score"], reverse=True)
 
-        top_outfits = ranked_outfits[:limit]
+        top_outfits = self._select_diverse_outfits(ranked_outfits, limit)
         for index, outfit in enumerate(top_outfits, start=1):
             event_type = request_context.get("event_type", "casual")
             outfit["name"] = self.build_outfit_name(event_type, index)
@@ -383,21 +431,51 @@ class RecommendationEngine:
         if request_context.get("anchor_item_id") and anchor_item is None:
             return []
 
-        tops = self._build_pool(categorized_items["top"], anchor_item, "top")
-        dresses = self._build_pool(categorized_items["dress"], anchor_item, "dress")
-        bottoms = self._build_pool(categorized_items["bottom"], anchor_item, "bottom")
-        shoes = self._build_pool(categorized_items["shoes"], anchor_item, "shoes")
-        outerwear = self._build_pool(
-            categorized_items["outerwear"],
-            anchor_item,
-            "outerwear",
-            allow_empty=True,
+        tops = self._rank_category_pool(
+            self._build_pool(categorized_items["top"], anchor_item, "top"),
+            "top",
+            request_context,
+            MAX_PRIMARY_POOL,
         )
-        accessories = self._build_pool(
-            categorized_items["accessory"],
-            anchor_item,
+        dresses = self._rank_category_pool(
+            self._build_pool(categorized_items["dress"], anchor_item, "dress"),
+            "dress",
+            request_context,
+            MAX_PRIMARY_POOL,
+        )
+        bottoms = self._rank_category_pool(
+            self._build_pool(categorized_items["bottom"], anchor_item, "bottom"),
+            "bottom",
+            request_context,
+            MAX_PRIMARY_POOL,
+        )
+        shoes = self._rank_category_pool(
+            self._build_pool(categorized_items["shoes"], anchor_item, "shoes"),
+            "shoes",
+            request_context,
+            MAX_PRIMARY_POOL,
+        )
+        outerwear = self._rank_category_pool(
+            self._build_pool(
+                categorized_items["outerwear"],
+                anchor_item,
+                "outerwear",
+                allow_empty=True,
+            ),
+            "outerwear",
+            request_context,
+            MAX_OUTERWEAR_POOL,
+        )
+        accessories = self._rank_category_pool(
+            self._build_pool(
+                categorized_items["accessory"],
+                anchor_item,
+                "accessory",
+                allow_empty=True,
+            ),
             "accessory",
-            allow_empty=True,
+            request_context,
+            MAX_ACCESSORY_POOL,
         )
 
         if not shoes or (not dresses and (not tops or not bottoms)):
@@ -408,13 +486,13 @@ class RecommendationEngine:
         if anchor_item and anchor_item.category == "accessory":
             accessory_pool = [anchor_item]
         else:
-            accessory_pool = [item for item in accessories[:MAX_ACCESSORY_POOL] if item is not None]
+            accessory_pool = [item for item in accessories if item is not None]
             accessory_pool = [None] + accessory_pool if accessory_pool else [None]
 
         for top_item, bottom_item, shoes_item in product(
-            tops[:MAX_PRIMARY_POOL],
-            bottoms[:MAX_PRIMARY_POOL],
-            shoes[:MAX_PRIMARY_POOL],
+            tops,
+            bottoms,
+            shoes,
         ):
             base_candidate = [
                 self._make_candidate_entry("top", top_item),
@@ -438,7 +516,7 @@ class RecommendationEngine:
                 ):
                     candidates.append(candidate_with_accessory)
 
-                for outerwear_item in outerwear[:MAX_OUTERWEAR_POOL]:
+                for outerwear_item in outerwear:
                     if outerwear_item is None:
                         continue
                     layered_candidate = list(candidate_with_accessory) + [
@@ -452,8 +530,8 @@ class RecommendationEngine:
                         candidates.append(layered_candidate)
 
         for dress_item, shoes_item in product(
-            dresses[:MAX_PRIMARY_POOL],
-            shoes[:MAX_PRIMARY_POOL],
+            dresses,
+            shoes,
         ):
             base_candidate = [
                 self._make_candidate_entry("dress", dress_item),
@@ -476,7 +554,7 @@ class RecommendationEngine:
                 ):
                     candidates.append(candidate_with_accessory)
 
-                for outerwear_item in outerwear[:MAX_OUTERWEAR_POOL]:
+                for outerwear_item in outerwear:
                     if outerwear_item is None:
                         continue
                     layered_candidate = list(candidate_with_accessory) + [
@@ -555,6 +633,10 @@ class RecommendationEngine:
                 candidate,
                 request_context,
             ),
+            "item_type_compatibility": self.score_item_type_compatibility(
+                candidate,
+                request_context,
+            ),
             "completeness": self.score_completeness(candidate, request_context),
             "layering_correctness": self.score_layering_correctness(
                 candidate,
@@ -621,6 +703,10 @@ class RecommendationEngine:
             "weather_condition_match": (
                 "Образ соответствует погодным условиям",
                 "погода учтена при подборе",
+            ),
+            "item_type_compatibility": (
+                "Типы вещей сочетаются между собой",
+                "типы вещей сочетаются между собой",
             ),
             "completeness": (
                 "Собран полный комплект одежды",
@@ -826,6 +912,31 @@ class RecommendationEngine:
             4,
         )
 
+    def score_item_type_compatibility(self, candidate, request_context):
+        scores = []
+        top = self._get_item_by_category(candidate, "top")
+        dress = self._get_item_by_category(candidate, "dress")
+        bottom = self._get_item_by_category(candidate, "bottom")
+        shoes = self._get_item_by_category(candidate, "shoes")
+        outerwear = self._get_item_by_category(candidate, "outerwear")
+
+        if top and bottom:
+            scores.append(self._score_top_bottom_compatibility(top, bottom, request_context))
+        if bottom and shoes:
+            scores.append(self._score_bottom_shoe_compatibility(bottom, shoes, request_context))
+        if dress and shoes:
+            scores.append(self._score_dress_shoe_compatibility(dress, shoes, request_context))
+        if outerwear and shoes:
+            scores.append(self._score_outerwear_shoe_compatibility(outerwear, shoes, request_context))
+        if outerwear:
+            base_item = top or dress or bottom
+            if base_item:
+                scores.append(self._score_outerwear_base_compatibility(outerwear, base_item, request_context))
+
+        if not scores:
+            return 0.75
+        return round(sum(scores) / len(scores), 4)
+
     def score_completeness(self, candidate, request_context=None):
         roles = {entry["role"] for entry in candidate}
         if "dress" in roles:
@@ -985,6 +1096,108 @@ class RecommendationEngine:
             return items or [None]
         return items
 
+    def _rank_category_pool(self, items, category, request_context, max_size):
+        if not items:
+            return []
+
+        none_values = [item for item in items if item is None]
+        concrete_items = [item for item in items if item is not None]
+        if not concrete_items:
+            return none_values
+
+        scored_items = [
+            (item, self._score_single_item_context_fit(item, category, request_context))
+            for item in concrete_items
+        ]
+        scored_items.sort(key=lambda pair: pair[1], reverse=True)
+
+        selected = scored_items[:max_size]
+        selected_subcategories = {
+            self._normalize_token(item.subcategory) for item, _score in selected
+        }
+        preserve_top_count = max(6, max_size // 2)
+
+        for item, score in scored_items[max_size:]:
+            if len(selected) < max_size:
+                selected.append((item, score))
+                selected_subcategories.add(self._normalize_token(item.subcategory))
+                continue
+
+            subcategory = self._normalize_token(item.subcategory)
+            if subcategory in selected_subcategories or score < 0.45:
+                continue
+
+            replace_index = len(selected) - 1
+            if replace_index < preserve_top_count:
+                break
+            selected[replace_index] = (item, score)
+            selected_subcategories.add(subcategory)
+            selected.sort(key=lambda pair: pair[1], reverse=True)
+
+        ranked_items = [item for item, _score in selected]
+        if category in {"outerwear", "accessory"}:
+            return none_values + ranked_items if none_values else ranked_items
+        return ranked_items
+
+    def _score_single_item_context_fit(self, item, category, request_context):
+        event_type = self._normalize_token(request_context.get("event_type")) or "casual"
+        event_rule = EVENT_RULES.get(event_type, EVENT_RULES["casual"])
+        season = self._normalize_token(request_context.get("season"))
+        if not season:
+            season = self._infer_season_from_temperature(request_context.get("temperature"))
+
+        event_score = (
+            self._score_item_event_fit(item, event_type, event_rule)
+            if self._item_matches_event_hard_rule(item, event_type)
+            else 0.0
+        )
+        season_score = self._score_item_season_fit(item.season, season) if season else 0.75
+        temperature_score = self._score_item_temperature_fit(item, request_context)
+        weather_score = self._score_single_item_weather_fit(item, request_context)
+
+        return round(
+            (event_score * 0.25)
+            + (season_score * 0.2)
+            + (temperature_score * 0.35)
+            + (weather_score * 0.2),
+            4,
+        )
+
+    def _score_item_temperature_fit(self, item, request_context):
+        temperature = request_context.get("temperature")
+        if temperature is None:
+            return 0.75
+
+        profile = self._get_item_climate_profile(item)
+        min_temp = profile["min_temp"]
+        max_temp = profile["max_temp"]
+        if min_temp <= temperature <= max_temp:
+            return 1.0
+
+        if temperature < min_temp:
+            distance = min_temp - temperature
+            return round(max(0.05, 1.0 - (distance * 0.12)), 4)
+
+        distance = temperature - max_temp
+        return round(max(0.05, 1.0 - (distance * 0.16)), 4)
+
+    def _score_single_item_weather_fit(self, item, request_context):
+        weather_condition = self._normalize_weather(request_context.get("weather_condition"))
+        temperature = request_context.get("temperature")
+        category = self._normalize_token(item.category)
+
+        if category == "shoes":
+            return self._score_shoe_weather_fit(item, weather_condition, temperature)
+        if category == "bottom":
+            return self._score_bottom_weather_fit(item, weather_condition, temperature)
+        if category == "outerwear":
+            fake_candidate = [self._make_candidate_entry("outerwear", item)]
+            return self._score_outerwear_fit(fake_candidate, temperature, weather_condition)
+        if weather_condition in {"rain", "snow", "wind"}:
+            profile = self._get_item_climate_profile(item)
+            return 0.85 if profile["is_rain_safe"] or profile["is_wind_safe"] else 0.7
+        return 0.85
+
     def _find_anchor_item(self, clothing_items, anchor_item_id):
         if not anchor_item_id:
             return None
@@ -1024,8 +1237,310 @@ class RecommendationEngine:
             return False
         if self._requires_outerwear(request_context) and "outerwear" not in roles:
             return False
+        if not self._validate_weather_hard_rules(candidate, request_context):
+            return False
+        if not self._validate_heat_comfort(candidate, request_context):
+            return False
+        if not self._validate_cold_comfort(candidate, request_context):
+            return False
+        if not self._validate_type_compatibility(candidate, request_context):
+            return False
 
         return True
+
+    def _normalize_weather(self, weather_condition):
+        normalized_weather = self._normalize_token(weather_condition)
+        return {"clear": "sunny"}.get(normalized_weather, normalized_weather)
+
+    def _get_temperature_band(self, temperature):
+        if temperature is None:
+            return "unknown"
+        if temperature <= -15:
+            return "very_cold"
+        if temperature <= 5:
+            return "cold"
+        if temperature <= 14:
+            return "cool"
+        if temperature <= 20:
+            return "mild"
+        if temperature <= 24:
+            return "warm"
+        return "hot"
+
+    def _get_item_climate_profile(self, item):
+        category = self._normalize_token(getattr(item, "category", None))
+        subcategory = self._normalize_token(getattr(item, "subcategory", None))
+        season = self._normalize_token(getattr(item, "season", None))
+        warmth_level = self._estimate_item_warmth(item)
+
+        profile = {
+            "warmth_level": warmth_level,
+            "min_temp": 5,
+            "max_temp": 25,
+            "is_open": False,
+            "is_heavy": False,
+            "is_rain_safe": False,
+            "is_wind_safe": False,
+        }
+
+        if category == "top":
+            if subcategory in WARM_TOP_TYPES:
+                profile.update({"min_temp": 0, "max_temp": 20, "is_heavy": warmth_level >= 1.5})
+            elif subcategory in LIGHT_TOP_TYPES:
+                profile.update({"min_temp": 18, "max_temp": 35})
+            else:
+                profile.update({"min_temp": 12, "max_temp": 28})
+        elif category == "dress":
+            profile.update({"min_temp": 16, "max_temp": 32})
+        elif category == "bottom":
+            if subcategory in COLD_FORBIDDEN_BOTTOM_TYPES:
+                profile.update({"min_temp": 22, "max_temp": 35, "is_open": True})
+            elif subcategory in {"leggings", "joggers"}:
+                profile.update({"min_temp": 4, "max_temp": 22})
+            else:
+                profile.update({"min_temp": 5, "max_temp": 28})
+        elif category == "shoes":
+            if subcategory in OPEN_SHOE_TYPES:
+                profile.update({"min_temp": 22, "max_temp": 35, "is_open": True})
+            elif subcategory in {"boots", "ankle_boots"}:
+                profile.update({"min_temp": -15, "max_temp": 16, "is_wind_safe": True})
+            elif subcategory in {"sneakers", "flats", "shoes", "pumps"}:
+                profile.update({"min_temp": 8, "max_temp": 30})
+            else:
+                profile.update({"min_temp": 10, "max_temp": 28})
+        elif category == "outerwear":
+            if subcategory in HEAVY_OUTERWEAR_TYPES:
+                profile.update({"min_temp": -20, "max_temp": 14, "is_heavy": True})
+            elif subcategory == "windbreaker":
+                profile.update({"min_temp": 12, "max_temp": 24, "is_wind_safe": True, "is_rain_safe": True})
+            elif subcategory in {"trench", "jacket", "leather_jacket"}:
+                profile.update({"min_temp": 8, "max_temp": 20, "is_wind_safe": True})
+            elif subcategory == "blazer":
+                profile.update({"min_temp": 12, "max_temp": 22})
+            else:
+                profile.update({"min_temp": 8, "max_temp": 22})
+
+        if season == "winter":
+            profile["min_temp"] -= 5
+            profile["max_temp"] -= 3
+        elif season == "summer":
+            profile["min_temp"] += 3
+            profile["max_temp"] += 4
+
+        profile["is_rain_safe"] = profile["is_rain_safe"] or bool(getattr(item, "waterproof", False))
+        profile["is_wind_safe"] = profile["is_wind_safe"] or bool(getattr(item, "windproof", False))
+        return profile
+
+    def _is_item_allowed_for_temperature(self, item, temperature, weather_condition=None):
+        if item is None or temperature is None:
+            return True
+
+        category = self._normalize_token(item.category)
+        subcategory = self._normalize_token(item.subcategory)
+        profile = self._get_item_climate_profile(item)
+        normalized_weather = self._normalize_weather(weather_condition)
+
+        if temperature >= HOT_TEMPERATURE and category == "outerwear":
+            return subcategory == "windbreaker" and normalized_weather in {"rain", "wind"}
+        if temperature >= 23 and category == "outerwear" and subcategory in HEAVY_OUTERWEAR_TYPES:
+            return False
+        if temperature >= 22 and category == "top" and subcategory in WARM_TOP_TYPES:
+            season = self._normalize_token(item.season)
+            if profile["warmth_level"] >= 1.0 or season in {"winter", "autumn"}:
+                return False
+        if temperature >= 23 and category == "shoes" and subcategory in HOT_FORBIDDEN_SHOE_TYPES:
+            return False
+        if temperature <= 10 and category == "bottom" and subcategory == "shorts":
+            return False
+        if temperature <= 10 and category == "shoes" and subcategory == "slippers":
+            return False
+        if temperature <= 5 and category == "bottom" and subcategory in COLD_FORBIDDEN_BOTTOM_TYPES:
+            return False
+        if temperature <= 5 and category == "shoes" and subcategory in COLD_FORBIDDEN_SHOE_TYPES:
+            return False
+
+        return True
+
+    def _validate_weather_hard_rules(self, candidate, request_context):
+        weather_condition = self._normalize_weather(request_context.get("weather_condition"))
+        temperature = request_context.get("temperature")
+        shoes = self._get_item_by_category(candidate, "shoes")
+        shoes_subcategory = self._normalize_token(getattr(shoes, "subcategory", None))
+
+        if weather_condition == "rain" and shoes_subcategory in OPEN_SHOE_TYPES:
+            return False
+        if weather_condition == "snow" and shoes_subcategory not in SNOW_SAFE_SHOE_TYPES:
+            return False
+        if weather_condition == "wind" and temperature is not None and temperature <= 18:
+            if shoes_subcategory in OPEN_SHOE_TYPES:
+                return False
+        return True
+
+    def _validate_heat_comfort(self, candidate, request_context):
+        temperature = request_context.get("temperature")
+        if temperature is None:
+            return True
+
+        weather_condition = self._normalize_weather(request_context.get("weather_condition"))
+        top = self._get_item_by_category(candidate, "top")
+        bottom = self._get_item_by_category(candidate, "bottom")
+        shoes = self._get_item_by_category(candidate, "shoes")
+        outerwear = self._get_item_by_category(candidate, "outerwear")
+
+        for entry in candidate:
+            if not self._is_item_allowed_for_temperature(
+                entry["item"],
+                temperature,
+                weather_condition,
+            ):
+                return False
+
+        if temperature >= HOT_TEMPERATURE and outerwear is not None:
+            outerwear_subcategory = self._normalize_token(outerwear.subcategory)
+            if not (outerwear_subcategory == "windbreaker" and weather_condition in {"rain", "wind"}):
+                return False
+
+        if temperature >= WARM_TEMPERATURE:
+            top_subcategory = self._normalize_token(getattr(top, "subcategory", None))
+            bottom_subcategory = self._normalize_token(getattr(bottom, "subcategory", None))
+            shoes_subcategory = self._normalize_token(getattr(shoes, "subcategory", None))
+            top_is_warm = top_subcategory in WARM_TOP_TYPES and (
+                top is not None and self._estimate_item_warmth(top) >= 1.0
+            )
+            if top_is_warm and bottom_subcategory == "shorts" and shoes_subcategory in OPEN_SHOE_TYPES:
+                return False
+
+        if temperature >= HOT_TEMPERATURE:
+            non_accessory_warmth = sum(
+                self._estimate_item_warmth(entry["item"])
+                for entry in candidate
+                if entry["role"] != "accessory"
+            )
+            if non_accessory_warmth > 4.0:
+                return False
+
+        return True
+
+    def _validate_cold_comfort(self, candidate, request_context):
+        temperature = request_context.get("temperature")
+        if temperature is None:
+            return True
+
+        bottom = self._get_item_by_category(candidate, "bottom")
+        shoes = self._get_item_by_category(candidate, "shoes")
+        bottom_subcategory = self._normalize_token(getattr(bottom, "subcategory", None))
+        shoes_subcategory = self._normalize_token(getattr(shoes, "subcategory", None))
+
+        if temperature <= 10 and bottom_subcategory == "shorts":
+            return False
+        if temperature <= 10 and shoes_subcategory == "slippers":
+            return False
+        if temperature <= 5 and bottom_subcategory in COLD_FORBIDDEN_BOTTOM_TYPES:
+            return False
+        if temperature <= 5 and shoes_subcategory in COLD_FORBIDDEN_SHOE_TYPES:
+            return False
+        return True
+
+    def _validate_type_compatibility(self, candidate, request_context):
+        temperature = request_context.get("temperature")
+        event_type = self._normalize_token(request_context.get("event_type")) or "casual"
+        top = self._get_item_by_category(candidate, "top")
+        bottom = self._get_item_by_category(candidate, "bottom")
+        shoes = self._get_item_by_category(candidate, "shoes")
+        outerwear = self._get_item_by_category(candidate, "outerwear")
+
+        top_subcategory = self._normalize_token(getattr(top, "subcategory", None))
+        bottom_subcategory = self._normalize_token(getattr(bottom, "subcategory", None))
+        shoes_subcategory = self._normalize_token(getattr(shoes, "subcategory", None))
+        outerwear_subcategory = self._normalize_token(getattr(outerwear, "subcategory", None))
+
+        if bottom_subcategory == "joggers" and shoes_subcategory == "pumps":
+            return False
+        if temperature is not None and temperature >= 18 and bottom_subcategory == "shorts" and shoes_subcategory in {"boots", "ankle_boots"}:
+            return False
+        if temperature is not None and temperature > 20 and top_subcategory in WARM_TOP_TYPES and bottom_subcategory == "shorts":
+            return False
+        if outerwear_subcategory in {"blazer", "coat", "parka", "down_jacket"} and shoes_subcategory == "slippers":
+            return False
+        if outerwear_subcategory == "coat" and bottom_subcategory == "shorts":
+            return False
+        if event_type == "evening" and top_subcategory == "sweatshirt" and shoes_subcategory == "pumps":
+            return False
+        if event_type == "office" and top_subcategory == "t_shirt" and shoes_subcategory == "pumps" and outerwear_subcategory != "blazer":
+            return False
+        if event_type in {"evening", "party"} and outerwear_subcategory == "windbreaker":
+            return False
+
+        return True
+
+    def _score_top_bottom_compatibility(self, top, bottom, request_context):
+        top_subcategory = self._normalize_token(top.subcategory)
+        bottom_subcategory = self._normalize_token(bottom.subcategory)
+        temperature = request_context.get("temperature")
+
+        if temperature is not None and temperature > 20 and top_subcategory in WARM_TOP_TYPES and bottom_subcategory == "shorts":
+            return 0.05
+        if top_subcategory == "hoodie" and bottom_subcategory == "trousers" and self._normalize_token(request_context.get("event_type")) == "office":
+            return 0.1
+        if bottom_subcategory in TOP_BOTTOM_COMPATIBILITY.get(top_subcategory, set()):
+            return 1.0
+        if top_subcategory in WARM_TOP_TYPES and bottom_subcategory in {"jeans", "trousers", "skirt", "leggings"}:
+            return 0.85
+        if top_subcategory in LIGHT_TOP_TYPES and bottom_subcategory in {"jeans", "shorts", "skirt", "trousers"}:
+            return 0.85
+        return 0.62
+
+    def _score_bottom_shoe_compatibility(self, bottom, shoes, request_context):
+        bottom_subcategory = self._normalize_token(bottom.subcategory)
+        shoes_subcategory = self._normalize_token(shoes.subcategory)
+        temperature = request_context.get("temperature")
+
+        if bottom_subcategory == "joggers" and shoes_subcategory == "pumps":
+            return 0.05
+        if temperature is not None and temperature >= 18 and bottom_subcategory == "shorts" and shoes_subcategory in {"boots", "ankle_boots"}:
+            return 0.05
+        if shoes_subcategory in BOTTOM_SHOE_COMPATIBILITY.get(bottom_subcategory, set()):
+            return 1.0
+        if shoes_subcategory == "sneakers" and bottom_subcategory in {"jeans", "shorts", "joggers", "leggings"}:
+            return 0.92
+        if shoes_subcategory in {"flats", "pumps", "shoes"} and bottom_subcategory in {"trousers", "skirt", "midi_skirt", "maxi_skirt"}:
+            return 0.92
+        return 0.55
+
+    def _score_dress_shoe_compatibility(self, dress, shoes, request_context):
+        shoes_subcategory = self._normalize_token(shoes.subcategory)
+        event_type = self._normalize_token(request_context.get("event_type")) or "casual"
+        if shoes_subcategory in DRESS_SHOE_COMPATIBILITY:
+            if event_type in {"evening", "party", "date"} and shoes_subcategory in {"pumps", "flats", "ankle_boots", "shoes"}:
+                return 1.0
+            if event_type in {"casual", "travel"} and shoes_subcategory in {"sneakers", "sandals", "flats"}:
+                return 1.0
+            return 0.85
+        return 0.45
+
+    def _score_outerwear_shoe_compatibility(self, outerwear, shoes, request_context):
+        outerwear_subcategory = self._normalize_token(outerwear.subcategory)
+        shoes_subcategory = self._normalize_token(shoes.subcategory)
+        if outerwear_subcategory in {"coat", "parka", "down_jacket", "blazer"} and shoes_subcategory == "slippers":
+            return 0.05
+        if outerwear_subcategory in HEAVY_OUTERWEAR_TYPES and shoes_subcategory in {"boots", "ankle_boots", "shoes", "sneakers"}:
+            return 0.95
+        if outerwear_subcategory in {"trench", "blazer", "jacket", "leather_jacket"} and shoes_subcategory in {"flats", "pumps", "shoes", "sneakers", "ankle_boots", "boots"}:
+            return 0.9
+        if outerwear_subcategory == "windbreaker" and shoes_subcategory in {"sneakers", "boots"}:
+            return 0.9
+        return 0.62
+
+    def _score_outerwear_base_compatibility(self, outerwear, base_item, request_context):
+        outerwear_subcategory = self._normalize_token(outerwear.subcategory)
+        base_subcategory = self._normalize_token(base_item.subcategory)
+        if base_subcategory in OUTERWEAR_BASE_COMPATIBILITY.get(outerwear_subcategory, set()):
+            return 1.0
+        if outerwear_subcategory in HEAVY_OUTERWEAR_TYPES and base_subcategory in WARM_TOP_TYPES | {"jeans", "trousers", "dress"}:
+            return 0.9
+        if outerwear_subcategory == "windbreaker" and self._get_item_style_families(base_item) & {"sport", "casual"}:
+            return 0.88
+        return 0.58
 
     def _deduplicate_candidates(self, candidates):
         unique_candidates = []
@@ -1142,6 +1657,7 @@ class RecommendationEngine:
             weights["temperature_match"] += 0.04
             weights["season_match"] += 0.03
             weights["layering_correctness"] += 0.03
+            weights["item_type_compatibility"] += 0.02
             weights["color_harmony"] -= 0.05
             weights["style_match"] -= 0.03
             weights["user_preference_match"] -= 0.04
@@ -1150,6 +1666,7 @@ class RecommendationEngine:
         if event_type in {"office", "evening", "party", "date"}:
             weights["event_match"] += 0.03
             weights["style_match"] += 0.02
+            weights["item_type_compatibility"] += 0.02
             weights["color_harmony"] += 0.01
             weights["user_preference_match"] -= 0.03
             weights["constraints_match"] -= 0.03
@@ -1278,24 +1795,30 @@ class RecommendationEngine:
         target_season = self._normalize_token(request_context.get("season"))
 
         if temperature is not None:
-            if temperature <= -15:
-                return 10.2
-            if temperature <= -5:
-                return 8.8
-            if temperature <= 5:
-                return 7.1
-            if temperature <= 15:
-                return 5.8
-            if temperature <= 24:
-                return 4.3
-            return 3.0
+            if temperature >= 28:
+                return 1.0
+            if temperature >= 25:
+                return 1.4
+            if temperature >= 21:
+                return 1.9
+            if temperature >= 16:
+                return 2.8
+            if temperature >= 11:
+                return 4.0
+            if temperature >= 6:
+                return 5.2
+            if temperature >= 1:
+                return 6.5
+            if temperature >= -5:
+                return 7.8
+            return 9.0
 
         return {
             "winter": 8.5,
             "autumn": 6.3,
-            "spring": 5.7,
-            "summer": 3.2,
-        }.get(target_season, 5.2)
+            "spring": 4.2,
+            "summer": 1.6,
+        }.get(target_season, 4.0)
 
     def _score_insulation_balance(self, items, request_context):
         provided_insulation = sum(self._estimate_item_warmth(item) for item in items)
@@ -1307,7 +1830,9 @@ class RecommendationEngine:
             return round(min(provided_insulation / required_insulation, 1.0), 4)
 
         excess_ratio = (provided_insulation - required_insulation) / required_insulation
-        return round(max(0.3, 1.0 - (excess_ratio * 0.35)), 4)
+        temperature = request_context.get("temperature")
+        penalty_multiplier = 0.75 if temperature is not None and temperature >= WARM_TEMPERATURE else 0.45
+        return round(max(0.05, 1.0 - (excess_ratio * penalty_multiplier)), 4)
 
     def _infer_layer_level(self, item):
         explicit_layer_level = self._normalize_token(getattr(item, "layer_level", None))
@@ -2058,6 +2583,108 @@ class RecommendationEngine:
             },
         }
 
+    def _select_diverse_outfits(self, ranked_outfits, limit):
+        if not ranked_outfits or limit <= 0:
+            return []
+
+        eligible = [
+            outfit for outfit in ranked_outfits if outfit.get("score", 0.0) >= MIN_DIVERSE_OUTFIT_SCORE
+        ] or ranked_outfits
+
+        selected = []
+        used_groups = set()
+        for outfit in eligible:
+            if len(selected) >= limit:
+                break
+            if any(self._has_same_core_outfit(outfit, selected_outfit) for selected_outfit in selected):
+                continue
+            group = self._get_outfit_diversity_group(outfit)
+            if group in used_groups:
+                continue
+            if any(self._core_overlap_count(outfit, selected_outfit) >= 2 for selected_outfit in selected):
+                continue
+            selected.append(outfit)
+            used_groups.add(group)
+
+        for outfit in eligible:
+            if len(selected) >= limit:
+                break
+            if outfit in selected:
+                continue
+            if any(self._has_same_core_outfit(outfit, selected_outfit) for selected_outfit in selected):
+                continue
+            selected.append(outfit)
+
+        for outfit in ranked_outfits:
+            if len(selected) >= limit:
+                break
+            if outfit in selected:
+                continue
+            if any(self._has_same_core_outfit(outfit, selected_outfit) for selected_outfit in selected):
+                continue
+            selected.append(outfit)
+
+        selected.sort(key=lambda outfit: outfit.get("score", 0.0), reverse=True)
+        return selected[:limit]
+
+    def _get_outfit_core_items(self, outfit):
+        return [
+            item
+            for item in outfit.get("items", [])
+            if item.get("role") in {"top", "dress", "bottom", "shoes", "outerwear"}
+        ]
+
+    def _get_outfit_core_key(self, outfit):
+        return tuple(
+            sorted(
+                (item.get("role"), item.get("clothing_item_id") or item.get("id"))
+                for item in self._get_outfit_core_items(outfit)
+            )
+        )
+
+    def _has_same_core_outfit(self, left_outfit, right_outfit):
+        return self._get_outfit_core_key(left_outfit) == self._get_outfit_core_key(right_outfit)
+
+    def _core_overlap_count(self, left_outfit, right_outfit):
+        left_ids = {item.get("clothing_item_id") or item.get("id") for item in self._get_outfit_core_items(left_outfit)}
+        right_ids = {item.get("clothing_item_id") or item.get("id") for item in self._get_outfit_core_items(right_outfit)}
+        return len(left_ids & right_ids)
+
+    def _get_outfit_diversity_group(self, outfit):
+        core_items = self._get_outfit_core_items(outfit)
+        roles = {item.get("role") for item in core_items}
+        formula = "dress" if "dress" in roles else "top_bottom"
+        weather_layering = "with_outerwear" if "outerwear" in roles else "no_outerwear"
+
+        shoes = next((item for item in core_items if item.get("role") == "shoes"), None)
+        shoes_subcategory = self._normalize_token(shoes.get("subcategory") if shoes else None)
+        if shoes_subcategory in OPEN_SHOE_TYPES:
+            shoe_family = "open"
+        elif shoes_subcategory == "sneakers":
+            shoe_family = "sneakers"
+        elif shoes_subcategory in {"boots", "ankle_boots"}:
+            shoe_family = "boots"
+        elif shoes_subcategory in {"pumps", "flats", "shoes"}:
+            shoe_family = "formal"
+        else:
+            shoe_family = shoes_subcategory or "unknown"
+
+        style_families = []
+        for item in core_items:
+            for style in item.get("styles") or []:
+                style_token = self._normalize_token(style)
+                style_families.append(STYLE_FAMILY_MAP.get(style_token, style_token))
+        dominant_style = Counter(style_families).most_common(1)[0][0] if style_families else "unknown"
+
+        color_families = []
+        for item in core_items:
+            if item.get("role") in {"top", "dress", "bottom", "outerwear"}:
+                for color in item.get("colors") or []:
+                    color_families.append(self._get_color_family(color))
+        dominant_color = Counter(color_families).most_common(1)[0][0] if color_families else "unknown"
+
+        return (formula, dominant_style, weather_layering, shoe_family, dominant_color)
+
     def _infer_season_from_temperature(self, temperature):
         if temperature is None:
             return None
@@ -2192,10 +2819,12 @@ class RecommendationEngine:
                 return 1.0
             return 0.3
 
+        if temperature >= 23 and subcategory in HOT_FORBIDDEN_SHOE_TYPES:
+            return 0.05
         if subcategory in HOT_SHOE_TYPES:
             return 1.0
-        if subcategory in {"flats", "pumps", "shoes"}:
-            return 0.55
+        if subcategory in {"pumps", "shoes"}:
+            return 0.65
         return 0.15
 
     def _score_shoe_weather_fit(self, shoes, weather_condition, temperature):

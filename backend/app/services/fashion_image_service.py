@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+from datetime import datetime, timezone
 from io import BytesIO
 
 from ..utils.errors import ApiError
@@ -12,6 +14,7 @@ SUBCATEGORY_CANDIDATES = [
     {"subcategory": "t_shirt", "category": "top", "label": "t-shirt", "title": "Футболка"},
     {"subcategory": "shirt", "category": "top", "label": "shirt", "title": "Рубашка"},
     {"subcategory": "blouse", "category": "top", "label": "blouse", "title": "Блузка"},
+    {"subcategory": "dress", "category": "dress", "label": "dress", "title": "Платье"},
     {"subcategory": "polo", "category": "top", "label": "polo shirt", "title": "Поло"},
     {"subcategory": "longsleeve", "category": "top", "label": "long sleeve top", "title": "Лонгслив"},
     {"subcategory": "sweater", "category": "top", "label": "sweater", "title": "Свитер"},
@@ -67,10 +70,6 @@ SUBCATEGORY_CANDIDATES = [
     {"subcategory": "jewelry", "category": "accessory", "label": "jewelry", "title": "Украшение"},
 ]
 
-SUBCATEGORY_LOOKUP = {
-    candidate["subcategory"]: candidate for candidate in SUBCATEGORY_CANDIDATES
-}
-
 FPID_COMPAT_CANDIDATES = [
     {"subcategory": "bag", "category": "accessory", "label": "bag", "title": "Сумка"},
     {"subcategory": "belt", "category": "accessory", "label": "belt", "title": "Ремень"},
@@ -107,16 +106,11 @@ FPID_COMPAT_CANDIDATES = [
     {"subcategory": "watch", "category": "accessory", "label": "watch", "title": "Часы"},
 ]
 
-SUBCATEGORY_LOOKUP.update(
-    {
-        candidate["subcategory"]: candidate
-        for candidate in FPID_COMPAT_CANDIDATES
-    }
-)
-
+SUBCATEGORY_LOOKUP = {
+    candidate["subcategory"]: candidate for candidate in [*SUBCATEGORY_CANDIDATES, *FPID_COMPAT_CANDIDATES]
+}
 LABEL_LOOKUP = {
-    candidate["label"]: candidate
-    for candidate in [*SUBCATEGORY_CANDIDATES, *FPID_COMPAT_CANDIDATES]
+    candidate["label"]: candidate for candidate in [*SUBCATEGORY_CANDIDATES, *FPID_COMPAT_CANDIDATES]
 }
 
 COLOR_PALETTE = {
@@ -169,7 +163,6 @@ STYLE_SUGGESTIONS = {
     "sunglasses": ["casual", "statement"],
     "joggers": ["sport", "casual"],
     "leggings": ["sport", "casual"],
-    "dress": ["classic", "casual"],
 }
 
 FORMALITY_SUGGESTIONS = {
@@ -333,40 +326,184 @@ ZAPPOS_SUSPECT_SUBCATEGORIES = {
     "watch",
 }
 
+DEFAULT_DEEPFASHION_CHECKPOINT_PATH = PROJECT_ROOT / "backend" / "model_artifacts" / "deepfashion_classifier.pt"
+DEFAULT_DEEPFASHION_METADATA_PATH = PROJECT_ROOT / "backend" / "model_artifacts" / "deepfashion_classifier.metadata.json"
 DEFAULT_ZAPPOS_CHECKPOINT_PATH = PROJECT_ROOT / "backend" / "model_artifacts" / "zappos_classifier.pt"
 DEFAULT_ZAPPOS_METADATA_PATH = PROJECT_ROOT / "backend" / "model_artifacts" / "zappos_classifier.metadata.json"
+DEFAULT_FPID_CHECKPOINT_PATH = PROJECT_ROOT / "backend" / "model_artifacts" / "fpid_classifier.pt"
+DEFAULT_FPID_METADATA_PATH = PROJECT_ROOT / "backend" / "model_artifacts" / "fpid_classifier.metadata.json"
+
+MODEL_ARTIFACTS_DIR = PROJECT_ROOT / "backend" / "model_artifacts"
+MODEL_LOGS_DIR = PROJECT_ROOT / "backend" / "logs"
+MODEL_PREDICTIONS_LOG_PATH = MODEL_LOGS_DIR / "fashion_model_predictions.jsonl"
+
+APPAREL_CATEGORIES = {"top", "bottom", "outerwear", "dress"}
+DEEPFASHION_PRIMARY_CATEGORIES = {"top", "bottom", "outerwear"}
+FPID_PRIMARY_SUBCATEGORIES = {"dress"}
+FPID_PRIMARY_CATEGORIES = {"accessory"}
+FPID_SHOE_HINT_SUBCATEGORIES = SHOE_SUBCATEGORIES | {"sandals", "shoes", "sneakers"}
+DEEPFASHION_EARLY_PRIORITY_CATEGORIES = {"top", "bottom", "outerwear"}
+
+FPID_ACCESSORY_SUBCATEGORIES = {
+    "bag",
+    "belt",
+    "bracelet",
+    "earrings",
+    "hat",
+    "jewelry",
+    "necklace",
+    "scarf",
+    "socks",
+    "sunglasses",
+    "tie",
+    "wallet",
+    "watch",
+}
+
+FPID_COMMON_APPAREL_MISTAKES = {
+    "tie",
+    "scarf",
+    "belt",
+    "socks",
+    "bracelet",
+    "necklace",
+    "jewelry",
+    "watch",
+    "sunglasses",
+}
+
+DRESS_SUPPORT_SUBCATEGORIES = {"dress", "skirt", "top", "shirt", "blouse", "tunic"}
 
 
 class FashionImageService:
     def __init__(self):
         self.enabled = os.getenv("FASHION_AI_ENABLED", "true").lower() == "true"
-        self.model_id = os.getenv(
-            "FASHION_AI_MODEL_ID",
-            "openai/clip-vit-base-patch32",
-        )
+        self.model_id = os.getenv("FASHION_AI_MODEL_ID", "openai/clip-vit-base-patch32")
         self.deepfashion_threshold = float(os.getenv("DEEPFASHION_CONFIDENCE_THRESHOLD", "0.55"))
+        self.deepfashion_early_priority_threshold = float(os.getenv("DEEPFASHION_EARLY_PRIORITY_THRESHOLD", "0.30"))
+        self.deepfashion_apparel_fallback_threshold = float(
+            os.getenv("DEEPFASHION_APPAREL_FALLBACK_THRESHOLD", "0.18")
+        )
+        self.fpid_primary_confidence_threshold = float(os.getenv("FPID_PRIMARY_CONFIDENCE_THRESHOLD", "0.58"))
+        self.fpid_accessory_confidence_threshold = float(os.getenv("FPID_ACCESSORY_CONFIDENCE_THRESHOLD", "0.76"))
+        self.fpid_dress_hint_threshold = float(os.getenv("FPID_DRESS_HINT_THRESHOLD", "0.18"))
+        self.fpid_dress_shape_threshold = float(os.getenv("FPID_DRESS_SHAPE_THRESHOLD", "0.08"))
         self.zappos_enabled = os.getenv("ZAPPOS_CLASSIFIER_ENABLED", "true").lower() == "true"
         self.zappos_top_shoe_score_threshold = float(os.getenv("ZAPPOS_TOP_SHOE_SCORE_THRESHOLD", "0.05"))
-        self.zappos_fallback_confidence_threshold = float(os.getenv("ZAPPOS_FALLBACK_CONFIDENCE_THRESHOLD", "0.65"))
+        self.zappos_fallback_confidence_threshold = float(os.getenv("ZAPPOS_FALLBACK_CONFIDENCE_THRESHOLD", "0.62"))
         self._pipeline = None
-        self._local_classifier = DeepFashionLocalClassifier()
+
+        deepfashion_checkpoint_path = os.getenv(
+            "DEEPFASHION_CHECKPOINT_PATH",
+            str(
+                self._first_existing_path(
+                    [
+                        DEFAULT_DEEPFASHION_CHECKPOINT_PATH,
+                        MODEL_ARTIFACTS_DIR / "deepfashion_classifier.pth",
+                        MODEL_ARTIFACTS_DIR / "deepfashion_local_classifier.pt",
+                    ],
+                    DEFAULT_DEEPFASHION_CHECKPOINT_PATH,
+                )
+            ),
+        )
+        deepfashion_metadata_path = os.getenv(
+            "DEEPFASHION_METADATA_PATH",
+            str(
+                self._first_existing_path(
+                    [
+                        DEFAULT_DEEPFASHION_METADATA_PATH,
+                        MODEL_ARTIFACTS_DIR / "deepfashion_local_classifier.metadata.json",
+                    ],
+                    DEFAULT_DEEPFASHION_METADATA_PATH,
+                )
+            ),
+        )
+        fpid_checkpoint_path = os.getenv(
+            "FPID_CHECKPOINT_PATH",
+            str(
+                self._first_existing_path(
+                    [
+                        DEFAULT_FPID_CHECKPOINT_PATH,
+                        MODEL_ARTIFACTS_DIR / "fpid_classifier.pth",
+                        MODEL_ARTIFACTS_DIR / "fashion_product_images_classifier.pt",
+                    ],
+                    DEFAULT_FPID_CHECKPOINT_PATH,
+                )
+            ),
+        )
+        fpid_metadata_path = os.getenv(
+            "FPID_METADATA_PATH",
+            str(
+                self._first_existing_path(
+                    [
+                        DEFAULT_FPID_METADATA_PATH,
+                        MODEL_ARTIFACTS_DIR / "fashion_product_images_classifier.metadata.json",
+                    ],
+                    DEFAULT_FPID_METADATA_PATH,
+                )
+            ),
+        )
+        zappos_checkpoint_path = os.getenv(
+            "ZAPPOS_CHECKPOINT_PATH",
+            str(
+                self._first_existing_path(
+                    [
+                        DEFAULT_ZAPPOS_CHECKPOINT_PATH,
+                        MODEL_ARTIFACTS_DIR / "zappos_classifier.pth",
+                        MODEL_ARTIFACTS_DIR / "wardrobe_zappos_classifier.pt",
+                    ],
+                    DEFAULT_ZAPPOS_CHECKPOINT_PATH,
+                )
+            ),
+        )
+        zappos_metadata_path = os.getenv(
+            "ZAPPOS_METADATA_PATH",
+            str(
+                self._first_existing_path(
+                    [
+                        DEFAULT_ZAPPOS_METADATA_PATH,
+                        MODEL_ARTIFACTS_DIR / "wardrobe_zappos_classifier.metadata.json",
+                    ],
+                    DEFAULT_ZAPPOS_METADATA_PATH,
+                )
+            ),
+        )
+
+        self._deepfashion_classifier = DeepFashionLocalClassifier(
+            checkpoint_path=deepfashion_checkpoint_path,
+            metadata_path=deepfashion_metadata_path,
+            model_slug="deepfashion-local",
+            missing_model="deepfashion-local",
+            default_source_dataset="DeepFashion Category and Attribute Prediction Benchmark",
+        )
+        self._fpid_classifier = DeepFashionLocalClassifier(
+            checkpoint_path=fpid_checkpoint_path,
+            metadata_path=fpid_metadata_path,
+            model_slug="fpid-local",
+            missing_model="fpid-local",
+            default_source_dataset="Fashion Product Images",
+        )
         self._shoe_classifier = DeepFashionLocalClassifier(
-            checkpoint_path=os.getenv("ZAPPOS_CHECKPOINT_PATH", str(DEFAULT_ZAPPOS_CHECKPOINT_PATH)),
-            metadata_path=os.getenv("ZAPPOS_METADATA_PATH", str(DEFAULT_ZAPPOS_METADATA_PATH)),
+            checkpoint_path=zappos_checkpoint_path,
+            metadata_path=zappos_metadata_path,
             model_slug="zappos-local",
             missing_model="zappos-local",
             default_source_dataset="Zappos",
         )
 
+    @staticmethod
+    def _first_existing_path(paths, fallback):
+        for path in paths:
+            if path.exists():
+                return path
+        return fallback
+
     def analyze_upload(self, file_storage):
         raw_image = self._read_file_storage(file_storage)
         processed_image = self._remove_background(raw_image)
         colors = self._extract_palette_colors(processed_image)
-        classification = self._classify_image(processed_image)
-        suggestions = self._build_attribute_suggestions(
-            classification.get("subcategory"),
-            colors,
-        )
+        classification = self._classify_image(processed_image, original_filename=file_storage.filename)
+        suggestions = self._build_attribute_suggestions(classification.get("subcategory"), colors)
 
         return {
             "background_removed": True,
@@ -383,9 +520,7 @@ class FashionImageService:
             "waterproof": suggestions.get("waterproof"),
             "windproof": suggestions.get("windproof"),
             "confidence": classification.get("confidence"),
-            "top_predictions": self._normalize_top_predictions(
-                classification.get("top_predictions", [])
-            ),
+            "top_predictions": self._normalize_top_predictions(classification.get("top_predictions", [])),
             "model": classification.get("model") or self.model_id,
             "source_dataset": classification.get("source_dataset"),
             "classification_route": classification.get("classification_route"),
@@ -406,7 +541,6 @@ class FashionImageService:
         file_storage.stream.seek(0)
         image_bytes = file_storage.read()
         file_storage.stream.seek(0)
-
         if not image_bytes:
             raise ApiError("Не удалось прочитать изображение.", 400)
         return image_bytes
@@ -422,7 +556,7 @@ class FashionImageService:
 
         try:
             result = remove(image_bytes)
-        except Exception as error:  # pragma: no cover - depends on runtime model
+        except Exception as error:  # pragma: no cover
             raise ApiError(
                 "Не удалось удалить фон с изображения. Проверьте, что модель rembg доступна.",
                 500,
@@ -432,7 +566,7 @@ class FashionImageService:
             raise ApiError("Сервис удаления фона вернул пустой результат.", 500)
         return result
 
-    def _classify_image(self, image_bytes):
+    def _classify_image(self, image_bytes, original_filename=None):
         if not self.enabled:
             return {
                 "subcategory": None,
@@ -442,65 +576,331 @@ class FashionImageService:
                 "model": None,
             }
 
-        local_result = self._local_classifier.predict(image_bytes)
-        local_confidence = float(local_result.get("confidence") or 0.0)
-        local_model = local_result.get("model") or ""
-        local_source = local_result.get("source_dataset") or ""
-        is_fpid_model = local_model.startswith("fpid-local") or local_source == "Fashion Product Images"
+        deepfashion_result = self._deepfashion_classifier.predict(image_bytes)
+        fpid_result = self._fpid_classifier.predict(image_bytes)
+        zero_shot_result = None
+        zappos_result = None
 
-        if is_fpid_model and local_result.get("subcategory"):
-            zappos_route = self._zappos_refinement_route(local_result, image_bytes)
-            if zappos_route:
-                return self._refine_shoe_prediction(image_bytes, local_result, zappos_route)
-
-            warnings = list(local_result.get("warnings", []))
-            if local_confidence < self.deepfashion_threshold:
-                warnings.append(
-                    "Локальная FPID-модель дала результат с низкой уверенностью. Использован прогноз FPID без zero-shot fallback."
-                )
-            local_result["classification_route"] = "fpid"
-            local_result["warnings"] = warnings
-            return local_result
-
-        if local_result.get("subcategory") and local_confidence >= self.deepfashion_threshold:
-            local_result["classification_route"] = local_result.get("classification_route") or "local"
-            return local_result
+        ensemble_result = self._classify_with_ensemble(image_bytes, deepfashion_result, fpid_result)
+        if ensemble_result:
+            zappos_result = ensemble_result.get("_zappos_result")
+            self._log_model_predictions(
+                original_filename,
+                deepfashion_result,
+                fpid_result,
+                zappos_result,
+                zero_shot_result,
+                ensemble_result,
+            )
+            if "_zappos_result" in ensemble_result:
+                ensemble_result = dict(ensemble_result)
+                ensemble_result.pop("_zappos_result", None)
+            return ensemble_result
 
         zero_shot_result = self._classify_image_zero_shot(image_bytes)
-        warnings = list(local_result.get("warnings", []))
+        warnings = self._merge_warnings(deepfashion_result, fpid_result)
+        deepfashion_confidence = float(deepfashion_result.get("confidence") or 0.0)
 
-        if local_result.get("subcategory") and not zero_shot_result.get("subcategory"):
-            if local_confidence < self.deepfashion_threshold:
+        if deepfashion_result.get("subcategory") and not zero_shot_result.get("subcategory"):
+            if deepfashion_confidence < self.deepfashion_threshold:
                 warnings.append(
                     "Локальная DeepFashion-модель дала результат с пониженной уверенностью. Использован лучший доступный прогноз."
                 )
-            local_result["warnings"] = warnings
-            return local_result
+            result = dict(deepfashion_result)
+            result["warnings"] = warnings
+            result["classification_route"] = result.get("classification_route") or "deepfashion_fallback"
+            self._log_model_predictions(
+                original_filename,
+                deepfashion_result,
+                fpid_result,
+                zappos_result,
+                zero_shot_result,
+                result,
+            )
+            return result
 
         if zero_shot_result.get("subcategory"):
-            if local_result.get("subcategory") and local_confidence < self.deepfashion_threshold:
+            if deepfashion_result.get("subcategory") and deepfashion_confidence < self.deepfashion_threshold:
                 warnings.append(
                     "Локальная DeepFashion-модель дала низкую уверенность. Выполнен резервный zero-shot анализ."
                 )
             zero_shot_result["warnings"] = warnings + zero_shot_result.get("warnings", [])
+            zero_shot_result["classification_route"] = zero_shot_result.get("classification_route") or "zero_shot"
+            self._log_model_predictions(
+                original_filename,
+                deepfashion_result,
+                fpid_result,
+                zappos_result,
+                zero_shot_result,
+                zero_shot_result,
+            )
             return zero_shot_result
 
-        local_result["warnings"] = warnings + zero_shot_result.get("warnings", [])
-        return local_result
+        result = dict(deepfashion_result)
+        result["warnings"] = warnings + zero_shot_result.get("warnings", [])
+        result["classification_route"] = result.get("classification_route") or "deepfashion_fallback"
+        self._log_model_predictions(
+            original_filename,
+            deepfashion_result,
+            fpid_result,
+            zappos_result,
+            zero_shot_result,
+            result,
+        )
+        return result
+
+    def _classify_with_ensemble(self, image_bytes, deepfashion_result, fpid_result):
+        deepfashion_subcategory = deepfashion_result.get("subcategory")
+        fpid_subcategory = fpid_result.get("subcategory")
+        deepfashion_candidate = SUBCATEGORY_LOOKUP.get(deepfashion_subcategory) if deepfashion_subcategory else None
+        fpid_candidate = SUBCATEGORY_LOOKUP.get(fpid_subcategory) if fpid_subcategory else None
+        deepfashion_category = deepfashion_candidate.get("category") if deepfashion_candidate else None
+        fpid_category = fpid_candidate.get("category") if fpid_candidate else None
+        deepfashion_confidence = float(deepfashion_result.get("confidence") or 0.0)
+        fpid_confidence = float(fpid_result.get("confidence") or 0.0)
+        warnings = self._merge_warnings(deepfashion_result, fpid_result)
+        dress_override = self._resolve_fpid_dress_override(image_bytes, deepfashion_result, fpid_result)
+        if dress_override:
+            return self._build_override_result(
+                fpid_result,
+                subcategory="dress",
+                confidence=dress_override,
+                route="deepfashion_checked_by_fpid_dress",
+                warnings=warnings,
+                base_result=deepfashion_result,
+            )
+
+        deepfashion_apparel_like = deepfashion_category in {"top", "bottom", "outerwear", "dress"}
+        allow_fpid_accessory_override = (
+            fpid_category == "accessory"
+            and fpid_subcategory
+            and (
+                not deepfashion_apparel_like
+                or deepfashion_confidence < 0.55
+            )
+        )
+
+        if allow_fpid_accessory_override:
+            return self._build_override_result(
+                fpid_result,
+                subcategory=fpid_subcategory,
+                confidence=fpid_confidence,
+                route="fpid_primary_accessory",
+                warnings=warnings,
+                base_result=deepfashion_result,
+            )
+
+        deepfashion_is_shoe = (
+            deepfashion_subcategory in SHOE_SUBCATEGORIES
+            or deepfashion_category == "shoes"
+        )
+        fpid_is_shoe = (
+            fpid_subcategory in SHOE_SUBCATEGORIES
+            or fpid_category == "shoes"
+        )
+
+        shoe_base_result = None
+        if deepfashion_is_shoe:
+            shoe_base_result = deepfashion_result
+        elif fpid_is_shoe and (
+            not deepfashion_subcategory
+            or deepfashion_category == "accessory"
+            or deepfashion_confidence < self.deepfashion_threshold
+        ):
+            shoe_base_result = fpid_result
+
+        if shoe_base_result:
+            zappos_route = self._zappos_refinement_route(shoe_base_result, image_bytes)
+            if zappos_route:
+                return self._refine_shoe_prediction(image_bytes, shoe_base_result, zappos_route)
+
+            result = dict(shoe_base_result)
+            result["warnings"] = warnings
+            result["classification_route"] = "shoe_fallback"
+            return result
+
+        if deepfashion_subcategory and deepfashion_confidence >= self.deepfashion_threshold:
+            result = dict(deepfashion_result)
+            result["warnings"] = warnings
+            result["classification_route"] = "deepfashion_primary"
+            result["support_model"] = fpid_result.get("model")
+            result["support_subcategory"] = fpid_subcategory
+            result["support_confidence"] = fpid_result.get("confidence")
+            return result
+
+        if deepfashion_subcategory:
+            result = dict(deepfashion_result)
+            result["warnings"] = warnings
+            result["classification_route"] = "deepfashion_primary_low_confidence"
+            result["support_model"] = fpid_result.get("model")
+            result["support_subcategory"] = fpid_subcategory
+            result["support_confidence"] = fpid_result.get("confidence")
+            return result
+
+        return None
+
+    def _build_override_result(self, source_result, subcategory, confidence, route, warnings, base_result=None):
+        result = dict(source_result)
+        result["subcategory"] = subcategory
+        result["confidence"] = round(float(confidence), 4)
+        existing_predictions = result.get("top_predictions", []) or []
+        override_prediction = None
+        for prediction in existing_predictions:
+            if prediction.get("subcategory") == subcategory:
+                override_prediction = dict(prediction)
+                break
+
+        candidate = SUBCATEGORY_LOOKUP.get(subcategory)
+        if not override_prediction and candidate:
+            override_prediction = {
+                "subcategory": subcategory,
+                "category": candidate["category"],
+                "label": candidate["title"],
+                "score": round(float(confidence), 4),
+            }
+        elif override_prediction:
+            override_prediction["score"] = round(float(confidence), 4)
+
+        result["top_predictions"] = [override_prediction] + [
+            prediction
+            for prediction in existing_predictions
+            if prediction.get("subcategory") != subcategory
+        ] if override_prediction else existing_predictions
+        result["warnings"] = warnings
+        result["classification_route"] = route
+        if base_result:
+            result["base_model"] = base_result.get("model")
+            result["base_subcategory"] = base_result.get("subcategory")
+            result["base_confidence"] = base_result.get("confidence")
+        return result
+
+    def _resolve_fpid_dress_override(self, image_bytes, deepfashion_result, fpid_result):
+        fpid_subcategory = fpid_result.get("subcategory")
+        fpid_confidence = float(fpid_result.get("confidence") or 0.0)
+        deepfashion_subcategory = deepfashion_result.get("subcategory")
+        deepfashion_candidate = SUBCATEGORY_LOOKUP.get(deepfashion_subcategory) if deepfashion_subcategory else None
+        deepfashion_category = deepfashion_candidate.get("category") if deepfashion_candidate else None
+        if deepfashion_category not in {"top", "bottom"} and deepfashion_subcategory not in {
+            "skirt",
+            "mini_skirt",
+            "midi_skirt",
+            "maxi_skirt",
+        }:
+            return None
+
+        if fpid_subcategory == "dress" and fpid_confidence >= self.fpid_primary_confidence_threshold:
+            return fpid_confidence
+
+        dress_signal = self._extract_prediction_score(fpid_result, "dress")
+        if dress_signal >= self.fpid_dress_hint_threshold:
+            return dress_signal
+
+        return None
+
+    def _pick_best_shoe_base_result(self, deepfashion_result, fpid_result):
+        deepfashion_score = self._shoe_signal_score(deepfashion_result)
+        fpid_score = self._shoe_signal_score(fpid_result)
+
+        if deepfashion_score <= 0.0 and fpid_score <= 0.0:
+            return None
+        return deepfashion_result if deepfashion_score >= fpid_score else fpid_result
+
+    def _shoe_signal_score(self, classification):
+        subcategory = classification.get("subcategory")
+        if not subcategory:
+            return 0.0
+
+        candidate = SUBCATEGORY_LOOKUP.get(subcategory)
+        confidence = float(classification.get("confidence") or 0.0)
+        score = 0.0
+
+        if subcategory in FPID_SHOE_HINT_SUBCATEGORIES:
+            score += 1.0
+        if candidate and candidate.get("category") == "shoes":
+            score += 1.0
+
+        score += confidence
+        score += sum(
+            float(prediction.get("score") or 0.0)
+            for prediction in classification.get("top_predictions", [])[:3]
+            if prediction.get("subcategory") in FPID_SHOE_HINT_SUBCATEGORIES
+        )
+        return score
+
+    def _merge_warnings(self, *results):
+        merged = []
+        seen = set()
+        for result in results:
+            for warning in result.get("warnings", []):
+                if warning not in seen:
+                    seen.add(warning)
+                    merged.append(warning)
+        return merged
+
+    def _log_model_predictions(
+        self,
+        original_filename,
+        deepfashion_result,
+        fpid_result,
+        zappos_result,
+        zero_shot_result,
+        final_result,
+    ):
+        try:
+            MODEL_LOGS_DIR.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "filename": original_filename,
+                "deepfashion": self._serialize_prediction_result(deepfashion_result),
+                "fpid": self._serialize_prediction_result(fpid_result),
+                "zappos": self._serialize_prediction_result(zappos_result),
+                "zero_shot": self._serialize_prediction_result(zero_shot_result),
+                "final": self._serialize_prediction_result(final_result),
+            }
+            with MODEL_PREDICTIONS_LOG_PATH.open("a", encoding="utf-8") as log_file:
+                log_file.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        except Exception:
+            return
+
+    def _serialize_prediction_result(self, result):
+        if not result:
+            return None
+        return {
+            "subcategory": result.get("subcategory"),
+            "confidence": result.get("confidence"),
+            "model": result.get("model"),
+            "source_dataset": result.get("source_dataset"),
+            "classification_route": result.get("classification_route"),
+            "base_model": result.get("base_model"),
+            "base_subcategory": result.get("base_subcategory"),
+            "top_predictions": result.get("top_predictions", []),
+            "warnings": result.get("warnings", []),
+        }
+
+    def _extract_prediction_score(self, classification, subcategory):
+        if classification.get("subcategory") == subcategory:
+            return float(classification.get("confidence") or 0.0)
+
+        for prediction in classification.get("top_predictions", []):
+            if prediction.get("subcategory") == subcategory:
+                return float(prediction.get("score") or 0.0)
+        return 0.0
 
     def _zappos_refinement_route(self, classification, image_bytes):
         if not self.zappos_enabled:
             return None
+
         subcategory = classification.get("subcategory")
         if not subcategory:
             return None
+
         candidate = SUBCATEGORY_LOOKUP.get(subcategory)
         if subcategory in SHOE_SUBCATEGORIES or (candidate and candidate.get("category") == "shoes"):
-            return "fpid_to_zappos_shoes"
+            return "ensemble_to_zappos_shoes"
         if self._top_prediction_shoe_score(classification) >= self.zappos_top_shoe_score_threshold:
-            return "fpid_to_zappos_top5_shoes"
+            return "ensemble_to_zappos_top3_shoes"
         if subcategory in ZAPPOS_SUSPECT_SUBCATEGORIES and self._looks_like_horizontal_shoe_object(image_bytes):
-            return "fpid_to_zappos_shape_fallback"
+            return "ensemble_to_zappos_shape_fallback"
         return None
 
     def _top_prediction_shoe_score(self, classification):
@@ -510,19 +910,19 @@ class FashionImageService:
             if prediction.get("subcategory") in SHOE_SUBCATEGORIES
         )
 
-    def _looks_like_horizontal_shoe_object(self, image_bytes):
+    def _get_object_metrics(self, image_bytes):
         try:
             import numpy as np
             from PIL import Image
         except ImportError:
-            return False
+            return None
 
         try:
             image = Image.open(BytesIO(image_bytes)).convert("RGBA")
-            image.thumbnail((256, 256))
+            image.thumbnail((320, 320))
             pixels = np.array(image)
         except Exception:
-            return False
+            return None
 
         alpha = pixels[:, :, 3]
         if alpha.min() < 250:
@@ -543,36 +943,115 @@ class FashionImageService:
 
         ys, xs = np.where(mask)
         if len(xs) == 0 or len(ys) == 0:
+            return None
+
+        img_h, img_w = mask.shape
+        x1, x2 = xs.min(), xs.max()
+        y1, y2 = ys.min(), ys.max()
+        box_w = x2 - x1 + 1
+        box_h = y2 - y1 + 1
+        row_counts = mask[y1 : y2 + 1, x1 : x2 + 1].sum(axis=1)
+        max_row_width = int(row_counts.max()) if len(row_counts) else box_w
+
+        return {
+            "image_width": img_w,
+            "image_height": img_h,
+            "box_width": box_w,
+            "box_height": box_h,
+            "width_coverage": box_w / max(img_w, 1),
+            "height_coverage": box_h / max(img_h, 1),
+            "top_coverage": y1 / max(img_h, 1),
+            "bottom_coverage": y2 / max(img_h, 1),
+            "object_area": float(mask.mean()),
+            "aspect_width": box_w / max(box_h, 1),
+            "aspect_height": box_h / max(box_w, 1),
+            "max_row_width_ratio": max_row_width / max(img_w, 1),
+        }
+
+    def _looks_like_horizontal_shoe_object(self, image_bytes):
+        metrics = self._get_object_metrics(image_bytes)
+        if not metrics:
+            return False
+        return self._looks_like_horizontal_shoe_object_from_metrics(metrics)
+
+    def _looks_like_horizontal_shoe_object_from_metrics(self, metrics):
+        return (
+            metrics["aspect_width"] >= 1.15
+            and 0.03 <= metrics["object_area"] <= 0.65
+            and metrics["height_coverage"] <= 0.72
+        )
+
+    def _looks_like_long_one_piece_garment(self, image_bytes):
+        metrics = self._get_object_metrics(image_bytes)
+        if not metrics:
             return False
 
-        width = xs.max() - xs.min() + 1
-        height = ys.max() - ys.min() + 1
-        object_area = float(mask.mean())
-        aspect_ratio = width / max(height, 1)
-        return aspect_ratio >= 1.15 and 0.03 <= object_area <= 0.65
+        return (
+            metrics["aspect_height"] >= 1.18
+            and metrics["height_coverage"] >= 0.66
+            and metrics["top_coverage"] <= 0.26
+            and metrics["bottom_coverage"] >= 0.78
+            and metrics["object_area"] >= 0.12
+            and metrics["width_coverage"] >= 0.22
+        )
+
+    def _looks_like_large_apparel_object(self, metrics):
+        if not metrics:
+            return False
+        return (
+            metrics["height_coverage"] >= 0.52
+            and metrics["object_area"] >= 0.10
+            and metrics["aspect_height"] >= 0.95
+        )
+
+    def _is_fpid_accessory_trustworthy(self, fpid_result, metrics):
+        subcategory = fpid_result.get("subcategory")
+        if subcategory not in FPID_ACCESSORY_SUBCATEGORIES:
+            return False
+        if not metrics:
+            return True
+
+        confidence = float(fpid_result.get("confidence") or 0.0)
+        if subcategory == "tie":
+            return (
+                confidence >= self.fpid_accessory_confidence_threshold
+                and metrics["aspect_height"] >= 2.25
+                and 0.02 <= metrics["object_area"] <= 0.24
+                and metrics["max_row_width_ratio"] <= 0.42
+            )
+        if subcategory == "belt":
+            return metrics["aspect_width"] >= 1.85 and metrics["height_coverage"] <= 0.48
+        if subcategory in {"bracelet", "earrings", "jewelry", "necklace", "sunglasses", "watch"}:
+            return metrics["object_area"] <= 0.34 and metrics["height_coverage"] <= 0.68
+        if subcategory in {"wallet", "socks"}:
+            return metrics["object_area"] <= 0.42 and metrics["height_coverage"] <= 0.72
+        if subcategory in {"bag", "hat", "scarf"}:
+            return not (self._looks_like_large_apparel_object(metrics) and confidence < 0.86)
+        return True
 
     def _refine_shoe_prediction(self, image_bytes, base_result, route):
         zappos_result = self._shoe_classifier.predict(image_bytes)
-        warnings = list(base_result.get("warnings", [])) + list(zappos_result.get("warnings", []))
+        warnings = self._merge_warnings(base_result, zappos_result)
 
         if not zappos_result.get("subcategory"):
             fallback_result = dict(base_result)
             fallback_result["warnings"] = warnings
-            fallback_result["classification_route"] = "fpid_zappos_unavailable"
+            fallback_result["classification_route"] = "zappos_unavailable"
             fallback_result["base_model"] = base_result.get("model")
             fallback_result["base_subcategory"] = base_result.get("subcategory")
             return fallback_result
 
         zappos_confidence = float(zappos_result.get("confidence") or 0.0)
-        if route != "fpid_to_zappos_shoes" and zappos_confidence < self.zappos_fallback_confidence_threshold:
+        if route != "ensemble_to_zappos_shoes" and zappos_confidence < self.zappos_fallback_confidence_threshold:
             fallback_result = dict(base_result)
             fallback_result["warnings"] = warnings
-            fallback_result["classification_route"] = f"{route}_kept_fpid"
+            fallback_result["classification_route"] = f"{route}_kept_base"
             fallback_result["base_model"] = base_result.get("model")
             fallback_result["base_subcategory"] = base_result.get("subcategory")
             fallback_result["zappos_model"] = zappos_result.get("model")
             fallback_result["zappos_subcategory"] = zappos_result.get("subcategory")
             fallback_result["zappos_confidence"] = zappos_result.get("confidence")
+            fallback_result["_zappos_result"] = zappos_result
             return fallback_result
 
         refined_result = dict(zappos_result)
@@ -581,6 +1060,7 @@ class FashionImageService:
         refined_result["base_model"] = base_result.get("model")
         refined_result["base_subcategory"] = base_result.get("subcategory")
         refined_result["base_confidence"] = base_result.get("confidence")
+        refined_result["_zappos_result"] = zappos_result
         return refined_result
 
     def _classify_image_zero_shot(self, image_bytes):
@@ -593,7 +1073,7 @@ class FashionImageService:
                 "confidence": None,
                 "top_predictions": [],
                 "warnings": [
-                    "Не удалось загрузить резервный zero-shot классификатор. Установите transformers и torch.",
+                    "Не удалось загрузить резервный zero-shot классификатор. Установите transformers и torch."
                 ],
                 "model": self.model_id,
             }
@@ -617,7 +1097,7 @@ class FashionImageService:
                 "confidence": None,
                 "top_predictions": [],
                 "warnings": [
-                    "Резервный zero-shot классификатор недоступен. Выполнено только удаление фона и определение цветов.",
+                    "Резервный zero-shot классификатор недоступен. Выполнено только удаление фона и определение цветов."
                 ],
                 "model": self.model_id,
             }
@@ -665,17 +1145,12 @@ class FashionImageService:
         image = Image.open(BytesIO(image_bytes)).convert("RGBA")
         image.thumbnail((240, 240))
         pixels = np.array(image)
-
         if pixels.size == 0:
             return []
 
         alpha_channel = pixels[:, :, 3]
         mask = alpha_channel > 12
-        if mask.any():
-            rgb_pixels = pixels[:, :, :3][mask]
-        else:
-            rgb_pixels = pixels[:, :, :3].reshape(-1, 3)
-
+        rgb_pixels = pixels[:, :, :3][mask] if mask.any() else pixels[:, :, :3].reshape(-1, 3)
         if len(rgb_pixels) == 0:
             return []
 
@@ -688,8 +1163,8 @@ class FashionImageService:
         distances = ((rgb_pixels[:, None, :] - palette_values[None, :, :]) ** 2).sum(axis=2)
         nearest_indices = distances.argmin(axis=1)
         counts = np.bincount(nearest_indices, minlength=len(palette_names))
-
         total = counts.sum() or 1
+
         ranked_colors = [
             (palette_names[index], count / total)
             for index, count in enumerate(counts)
@@ -704,14 +1179,12 @@ class FashionImageService:
 
             if dominant_share >= 0.48 or second_share < 0.18:
                 return [dominant_color]
-
             if dominant_share + second_share >= 0.78 or third_share < 0.16:
                 return [dominant_color, ranked_colors[1][0]]
 
         selected_colors = [color for color, share in ranked_colors if share >= 0.18][:3]
         if not selected_colors and ranked_colors:
             selected_colors = [ranked_colors[0][0]]
-
         return selected_colors
 
     def _build_attribute_suggestions(self, subcategory, colors):
@@ -737,14 +1210,13 @@ class FashionImageService:
                 "category": "accessory",
                 "title": subcategory.replace("_", " ").title(),
             }
+
         category = candidate["category"]
         suggestions = {
             "category": category,
             "subcategory": subcategory,
             "title_suggestion": candidate["title"],
-            "styles": STYLE_SUGGESTIONS.get(subcategory)
-            or STYLE_SUGGESTIONS.get(category)
-            or ["casual"],
+            "styles": STYLE_SUGGESTIONS.get(subcategory) or STYLE_SUGGESTIONS.get(category) or ["casual"],
             "season": SEASON_SUGGESTIONS.get(subcategory, SEASON_SUGGESTIONS["default"]),
             "formality": FORMALITY_SUGGESTIONS.get(subcategory, FORMALITY_SUGGESTIONS["default"]),
             "fit": FIT_SUGGESTIONS.get(subcategory, FIT_SUGGESTIONS["default"]),
@@ -752,10 +1224,7 @@ class FashionImageService:
                 subcategory,
                 LAYER_LEVEL_SUGGESTIONS.get(f"category_{category}"),
             ),
-            "insulation_rating": INSULATION_SUGGESTIONS.get(
-                subcategory,
-                INSULATION_SUGGESTIONS["default"],
-            ),
+            "insulation_rating": INSULATION_SUGGESTIONS.get(subcategory, INSULATION_SUGGESTIONS["default"]),
             "waterproof": subcategory in WATERPROOF_SUBCATEGORIES,
             "windproof": subcategory in WINDPROOF_SUBCATEGORIES,
             "colors": colors,
@@ -764,7 +1233,6 @@ class FashionImageService:
 
     def _sanitize_attribute_suggestions(self, category, suggestions):
         normalized_category = (category or "").strip().lower()
-
         if normalized_category not in FIT_SUPPORTED_CATEGORIES:
             suggestions["fit"] = None
         if normalized_category not in LAYER_LEVEL_SUPPORTED_CATEGORIES:
@@ -775,7 +1243,6 @@ class FashionImageService:
             suggestions["waterproof"] = False
         if normalized_category not in WINDPROOF_SUPPORTED_CATEGORIES:
             suggestions["windproof"] = False
-
         return suggestions
 
     def _normalize_top_predictions(self, predictions):
