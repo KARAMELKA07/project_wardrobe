@@ -6,6 +6,11 @@ from ..utils.errors import ApiError
 ALLOWED_CATEGORIES = {"top", "dress", "bottom", "shoes", "outerwear", "accessory"}
 ALLOWED_FIT_VALUES = {"fitted", "balanced", "loose", "oversized"}
 ALLOWED_LAYER_LEVELS = {"base", "mid", "outer", "support"}
+FIT_SUPPORTED_CATEGORIES = {"top", "dress", "bottom", "outerwear"}
+LAYER_LEVEL_SUPPORTED_CATEGORIES = {"top", "dress", "outerwear"}
+INSULATION_SUPPORTED_CATEGORIES = {"top", "dress", "bottom", "shoes", "outerwear"}
+WATERPROOF_SUPPORTED_CATEGORIES = {"outerwear", "shoes"}
+WINDPROOF_SUPPORTED_CATEGORIES = {"outerwear"}
 SHOE_SUBCATEGORY_ALIASES = {
     "winter_boots": "boots",
     "felt_boots": "boots",
@@ -105,6 +110,17 @@ def validate_clothing_item_payload(payload):
         )
     if insulation_rating < 0 or insulation_rating > 5:
         raise ApiError("Уровень утепления должен быть в диапазоне от 0 до 5.", 400)
+
+    if category not in FIT_SUPPORTED_CATEGORIES:
+        fit = None
+    if category not in LAYER_LEVEL_SUPPORTED_CATEGORIES:
+        layer_level = None
+    if category not in INSULATION_SUPPORTED_CATEGORIES:
+        insulation_rating = 0.0
+    if category not in WATERPROOF_SUPPORTED_CATEGORIES:
+        waterproof = False
+    if category not in WINDPROOF_SUPPORTED_CATEGORIES:
+        windproof = False
 
     return {
         "title": title,

@@ -229,6 +229,12 @@ FIT_SUGGESTIONS = {
     "jewelry": "fitted",
 }
 
+FIT_SUPPORTED_CATEGORIES = {"top", "dress", "bottom", "outerwear"}
+LAYER_LEVEL_SUPPORTED_CATEGORIES = {"top", "dress", "outerwear"}
+INSULATION_SUPPORTED_CATEGORIES = {"top", "dress", "bottom", "shoes", "outerwear"}
+WATERPROOF_SUPPORTED_CATEGORIES = {"outerwear", "shoes"}
+WINDPROOF_SUPPORTED_CATEGORIES = {"outerwear"}
+
 LAYER_LEVEL_SUGGESTIONS = {
     "default": None,
     "category_top": "base",
@@ -732,8 +738,7 @@ class FashionImageService:
                 "title": subcategory.replace("_", " ").title(),
             }
         category = candidate["category"]
-
-        return {
+        suggestions = {
             "category": category,
             "subcategory": subcategory,
             "title_suggestion": candidate["title"],
@@ -755,6 +760,23 @@ class FashionImageService:
             "windproof": subcategory in WINDPROOF_SUBCATEGORIES,
             "colors": colors,
         }
+        return self._sanitize_attribute_suggestions(category, suggestions)
+
+    def _sanitize_attribute_suggestions(self, category, suggestions):
+        normalized_category = (category or "").strip().lower()
+
+        if normalized_category not in FIT_SUPPORTED_CATEGORIES:
+            suggestions["fit"] = None
+        if normalized_category not in LAYER_LEVEL_SUPPORTED_CATEGORIES:
+            suggestions["layer_level"] = None
+        if normalized_category not in INSULATION_SUPPORTED_CATEGORIES:
+            suggestions["insulation_rating"] = 0.0
+        if normalized_category not in WATERPROOF_SUPPORTED_CATEGORIES:
+            suggestions["waterproof"] = False
+        if normalized_category not in WINDPROOF_SUPPORTED_CATEGORIES:
+            suggestions["windproof"] = False
+
+        return suggestions
 
     def _normalize_top_predictions(self, predictions):
         normalized_predictions = []

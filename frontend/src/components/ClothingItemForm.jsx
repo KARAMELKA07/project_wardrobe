@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { analyzeItemImage } from "../api/itemsApi";
 import { resolveAssetUrl } from "../api/client";
 import {
+  buildItemMetadataDefaults,
+  sanitizeItemMetadata,
   CATEGORY_OPTIONS,
   COLOR_OPTIONS,
   FIT_OPTIONS,
@@ -11,10 +13,7 @@ import {
   STYLE_OPTIONS,
   buildRussianItemTitle,
   getColorLabel,
-  getDefaultFitValue,
-  getDefaultInsulationValue,
-  getDefaultLayerLevelValue,
-  getDefaultProtectionFlags,
+  getItemMetadataSupport,
   getSubcategoryLabel,
   getSubcategoryOptions,
   normalizeCatalogValue,
@@ -42,28 +41,19 @@ const EMPTY_FORM = {
 };
 
 function buildDefaultMetadata(category, subcategory) {
-  const fit = getDefaultFitValue(subcategory);
-  const layerLevel = getDefaultLayerLevelValue(subcategory, category);
-  const insulationRating = getDefaultInsulationValue(subcategory);
-  const protectionFlags = getDefaultProtectionFlags(subcategory);
-
-  return {
-    fit,
-    layer_level: layerLevel,
-    insulation_rating: insulationRating,
-    waterproof: protectionFlags.waterproof,
-    windproof: protectionFlags.windproof,
-  };
+  return buildItemMetadataDefaults(category, subcategory);
 }
 
 function mapInitialValues(initialValues) {
   if (!initialValues) {
-    return { ...EMPTY_FORM };
+    return {
+      ...EMPTY_FORM,
+      ...buildDefaultMetadata(EMPTY_FORM.category, EMPTY_FORM.subcategory),
+    };
   }
 
   const category = normalizeCatalogValue(initialValues.category) || "top";
   const subcategory = normalizeCatalogValue(initialValues.subcategory);
-  const defaultMetadata = buildDefaultMetadata(category, subcategory);
 
   return {
     title: initialValues.title || "",
@@ -73,13 +63,13 @@ function mapInitialValues(initialValues) {
     styles: (initialValues.styles || []).map(normalizeCatalogValue),
     season: initialValues.season || "all-season",
     formality: initialValues.formality || "casual",
-    fit: initialValues.fit || defaultMetadata.fit,
-    layer_level: initialValues.layer_level || defaultMetadata.layer_level,
-    insulation_rating: String(
-      initialValues.insulation_rating ?? defaultMetadata.insulation_rating,
-    ),
-    waterproof: Boolean(initialValues.waterproof ?? defaultMetadata.waterproof),
-    windproof: Boolean(initialValues.windproof ?? defaultMetadata.windproof),
+    ...sanitizeItemMetadata(category, subcategory, {
+      fit: initialValues.fit,
+      layer_level: initialValues.layer_level,
+      insulation_rating: initialValues.insulation_rating,
+      waterproof: initialValues.waterproof,
+      windproof: initialValues.windproof,
+    }),
     image_url: initialValues.image_url || "",
   };
 }
@@ -139,7 +129,9 @@ export default function ClothingItemForm({
   }, [imageFile]);
 
   const availableSubcategories = getSubcategoryOptions(formValues.category);
-  const previewUrl = imagePreviewUrl || (formValues.image_url ? resolveAssetUrl(formValues.image_url) : "");
+  const metadataSupport = getItemMetadataSupport(formValues.category);
+  const previewUrl =
+    imagePreviewUrl || (formValues.image_url ? resolveAssetUrl(formValues.image_url) : "");
 
   function handleChange(event) {
     const { name, type, value, checked } = event.target;
@@ -151,29 +143,24 @@ export default function ClothingItemForm({
       const hasCurrentSubcategory = nextSubcategories.some(
         (entry) => entry.value === currentSubcategory,
       );
+      const nextSubcategory = hasCurrentSubcategory ? currentSubcategory : "";
 
       setFormValues((currentValues) => ({
         ...currentValues,
         category: normalizedCategory,
-        subcategory: hasCurrentSubcategory ? currentSubcategory : "",
-        ...(hasCurrentSubcategory
-          ? buildDefaultMetadata(normalizedCategory, currentSubcategory)
-          : buildDefaultMetadata(normalizedCategory, "")),
+        subcategory: nextSubcategory,
+        ...buildDefaultMetadata(normalizedCategory, nextSubcategory),
       }));
       return;
     }
 
     if (name === "subcategory") {
       const normalizedSubcategory = normalizeCatalogValue(value);
-      const defaultMetadata = buildDefaultMetadata(
-        formValues.category,
-        normalizedSubcategory,
-      );
 
       setFormValues((currentValues) => ({
         ...currentValues,
         subcategory: normalizedSubcategory,
-        ...defaultMetadata,
+        ...buildDefaultMetadata(formValues.category, normalizedSubcategory),
       }));
       return;
     }
@@ -248,19 +235,25 @@ export default function ClothingItemForm({
       styles: analysis.styles?.length ? analysis.styles : currentValues.styles,
       season: analysis.season || currentValues.season,
       formality: analysis.formality || currentValues.formality,
-      fit: analysis.fit || defaultMetadata.fit,
-      layer_level: analysis.layer_level || defaultMetadata.layer_level,
-      insulation_rating: String(
-        analysis.insulation_rating ?? defaultMetadata.insulation_rating,
-      ),
-      waterproof:
-        analysis.waterproof ?? currentValues.waterproof ?? defaultMetadata.waterproof,
-      windproof: analysis.windproof ?? currentValues.windproof ?? defaultMetadata.windproof,
+      ...sanitizeItemMetadata(nextCategory, nextSubcategory, {
+        ...defaultMetadata,
+        fit: analysis.fit,
+        layer_level: analysis.layer_level,
+        insulation_rating: analysis.insulation_rating,
+        waterproof: analysis.waterproof ?? currentValues.waterproof,
+        windproof: analysis.windproof ?? currentValues.windproof,
+      }),
     }));
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
+
+    const metadataValues = sanitizeItemMetadata(
+      formValues.category,
+      formValues.subcategory,
+      formValues,
+    );
 
     const formData = new FormData();
     formData.append("title", formValues.title);
@@ -270,11 +263,11 @@ export default function ClothingItemForm({
     formData.append("styles", JSON.stringify(formValues.styles));
     formData.append("season", formValues.season);
     formData.append("formality", formValues.formality);
-    formData.append("fit", formValues.fit);
-    formData.append("layer_level", formValues.layer_level);
-    formData.append("insulation_rating", formValues.insulation_rating);
-    formData.append("waterproof", String(formValues.waterproof));
-    formData.append("windproof", String(formValues.windproof));
+    formData.append("fit", metadataValues.fit);
+    formData.append("layer_level", metadataValues.layer_level);
+    formData.append("insulation_rating", metadataValues.insulation_rating);
+    formData.append("waterproof", String(metadataValues.waterproof));
+    formData.append("windproof", String(metadataValues.windproof));
     formData.append("material", "");
     formData.append("auto_remove_background", String(autoRemoveBackground));
 
@@ -289,298 +282,315 @@ export default function ClothingItemForm({
     await onSubmit(formData);
   }
 
-    return (
-        <>
-            {showHeading ? (
-                <div className="section-heading section-heading-stack">
-                    <div>
-                        <h1>{headingText}</h1>
-                    </div>
-                </div>
-            ) : null}
-
-            <form className="surface-card form-card" onSubmit={handleSubmit}>
-
-      <div className="form-grid">
-        <label>
-          Название
-          <input
-            className="input"
-            name="title"
-            value={formValues.title}
-            onChange={handleChange}
-            placeholder="белая рубашка"
-            required
-          />
-        </label>
-
-        <label>
-          Категория
-          <select
-            className="input"
-            name="category"
-            value={formValues.category}
-            onChange={handleChange}
-          >
-            {CATEGORY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Тип вещи
-          <select
-            className="input"
-            name="subcategory"
-            value={formValues.subcategory}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Выберите тип вещи</option>
-            {availableSubcategories.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Сезон
-          <select
-            className="input"
-            name="season"
-            value={formValues.season}
-            onChange={handleChange}
-          >
-            <option value="all-season">{translateSeason("all-season")}</option>
-            <option value="spring">{translateSeason("spring")}</option>
-            <option value="summer">{translateSeason("summer")}</option>
-            <option value="autumn">{translateSeason("autumn")}</option>
-            <option value="winter">{translateSeason("winter")}</option>
-          </select>
-        </label>
-
-        <label>
-          Формальность
-          <select
-            className="input"
-            name="formality"
-            value={formValues.formality}
-            onChange={handleChange}
-          >
-            <option value="casual">{translateFormality("casual")}</option>
-            <option value="smart">{translateFormality("smart")}</option>
-            <option value="formal">{translateFormality("formal")}</option>
-          </select>
-        </label>
-
-        <label>
-          Посадка и силуэт
-          <select
-            className="input"
-            name="fit"
-            value={formValues.fit}
-            onChange={handleChange}
-          >
-            {FIT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Роль в слоистости
-          <select
-            className="input"
-            name="layer_level"
-            value={formValues.layer_level}
-            onChange={handleChange}
-          >
-            {LAYER_LEVEL_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Уровень утепления
-          <select
-            className="input"
-            name="insulation_rating"
-            value={formValues.insulation_rating}
-            onChange={handleChange}
-          >
-            {INSULATION_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="field-block image-field">
-          <div className="field-heading">
-            <span className="field-label">Изображение вещи</span>
+  return (
+    <>
+      {showHeading ? (
+        <div className="section-heading section-heading-stack">
+          <div>
+            <h1>{headingText}</h1>
           </div>
-          <label className="file-upload-button">
+        </div>
+      ) : null}
+
+      <form className="surface-card form-card" onSubmit={handleSubmit}>
+        <div className="form-grid">
+          <label>
+            Название
             <input
-              type="file"
-              accept=".png,.jpg,.jpeg,.webp"
-              onChange={handleImageSelection}
-              hidden
+              className="input"
+              name="title"
+              value={formValues.title}
+              onChange={handleChange}
+              placeholder="белая рубашка"
+              required
             />
-            {imageFile ? imageFile.name : "Выберите файл"}
           </label>
-          {previewUrl ? (
-            <div className="image-preview-card">
-              <img
-                src={previewUrl}
-                alt={formValues.title || "Предпросмотр вещи"}
-                className="image-preview"
+
+          <label>
+            Категория
+            <select
+              className="input"
+              name="category"
+              value={formValues.category}
+              onChange={handleChange}
+            >
+              {CATEGORY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Тип вещи
+            <select
+              className="input"
+              name="subcategory"
+              value={formValues.subcategory}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Выберите тип вещи</option>
+              {availableSubcategories.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Сезон
+            <select
+              className="input"
+              name="season"
+              value={formValues.season}
+              onChange={handleChange}
+            >
+              <option value="all-season">{translateSeason("all-season")}</option>
+              <option value="spring">{translateSeason("spring")}</option>
+              <option value="summer">{translateSeason("summer")}</option>
+              <option value="autumn">{translateSeason("autumn")}</option>
+              <option value="winter">{translateSeason("winter")}</option>
+            </select>
+          </label>
+
+          <label>
+            Формальность
+            <select
+              className="input"
+              name="formality"
+              value={formValues.formality}
+              onChange={handleChange}
+            >
+              <option value="casual">{translateFormality("casual")}</option>
+              <option value="smart">{translateFormality("smart")}</option>
+              <option value="formal">{translateFormality("formal")}</option>
+            </select>
+          </label>
+
+          {metadataSupport.supportsFit ? (
+            <label>
+              Посадка и силуэт
+              <select
+                className="input"
+                name="fit"
+                value={formValues.fit}
+                onChange={handleChange}
+              >
+                {FIT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {metadataSupport.supportsLayerLevel ? (
+            <label>
+              Роль в слоистости
+              <select
+                className="input"
+                name="layer_level"
+                value={formValues.layer_level}
+                onChange={handleChange}
+              >
+                {LAYER_LEVEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {metadataSupport.supportsInsulation ? (
+            <label>
+              Уровень утепления
+              <select
+                className="input"
+                name="insulation_rating"
+                value={formValues.insulation_rating}
+                onChange={handleChange}
+              >
+                {INSULATION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          <div className="field-block image-field">
+            <div className="field-heading">
+              <span className="field-label">Изображение вещи</span>
+            </div>
+            <label className="file-upload-button">
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp"
+                onChange={handleImageSelection}
+                hidden
               />
-              <div className="image-preview-meta">
-                <strong>{imageFile ? "Новое изображение" : "Текущее изображение"}</strong>
-                <span>{imageFile?.name || "Изображение уже сохранено"}</span>
+              {imageFile ? imageFile.name : "Выберите файл"}
+            </label>
+            {previewUrl ? (
+              <div className="image-preview-card">
+                <img
+                  src={previewUrl}
+                  alt={formValues.title || "Предпросмотр вещи"}
+                  className="image-preview"
+                />
+                <div className="image-preview-meta">
+                  <strong>{imageFile ? "Новое изображение" : "Текущее изображение"}</strong>
+                  <span>{imageFile?.name || "Изображение уже сохранено"}</span>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {metadataSupport.supportsWaterproof || metadataSupport.supportsWindproof ? (
+            <div className="field-block protection-field">
+              <div className="field-heading">
+                <span className="field-label">Защитные свойства</span>
+              </div>
+              <div className="chip-grid">
+                {metadataSupport.supportsWaterproof ? (
+                  <label className={formValues.waterproof ? "chip-button is-selected" : "chip-button"}>
+                    <input
+                      type="checkbox"
+                      name="waterproof"
+                      checked={formValues.waterproof}
+                      onChange={handleChange}
+                      hidden
+                    />
+                    Защита от дождя
+                  </label>
+                ) : null}
+                {metadataSupport.supportsWindproof ? (
+                  <label className={formValues.windproof ? "chip-button is-selected" : "chip-button"}>
+                    <input
+                      type="checkbox"
+                      name="windproof"
+                      checked={formValues.windproof}
+                      onChange={handleChange}
+                      hidden
+                    />
+                    Защита от ветра
+                  </label>
+                ) : null}
               </div>
             </div>
           ) : null}
-        </div>
 
-        <div className="field-block protection-field">
-          <div className="field-heading">
-            <span className="field-label">Защитные свойства</span>
-          </div>
-          <div className="chip-grid">
-            <label className={formValues.waterproof ? "chip-button is-selected" : "chip-button"}>
-              <input
-                type="checkbox"
-                name="waterproof"
-                checked={formValues.waterproof}
-                onChange={handleChange}
-                hidden
-              />
-              Защита от дождя
-            </label>
-            <label className={formValues.windproof ? "chip-button is-selected" : "chip-button"}>
-              <input
-                type="checkbox"
-                name="windproof"
-                checked={formValues.windproof}
-                onChange={handleChange}
-                hidden
-              />
-              Защита от ветра
-            </label>
-          </div>
-        </div>
-
-        <div className="field-block full-width">
-          <div className="field-heading">
-            <span className="field-label">Цвета</span>
-          </div>
-          <div className="color-picker-grid">
-            {COLOR_OPTIONS.map((option) => {
-              const selected = formValues.colors.includes(option.value);
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={selected ? "color-swatch is-selected" : "color-swatch"}
-                  onClick={() => handleToggle("colors", option.value)}
-                  aria-label={option.label}
-                  title={option.label}
-                >
-                  <span
-                    className="color-dot"
-                    style={{
-                      backgroundColor: option.hex,
-                      borderColor: option.border,
-                    }}
-                  />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="field-block full-width">
-          <div className="field-heading">
-            <span className="field-label">Стили</span>
-          </div>
-          <div className="chip-grid">
-            {STYLE_OPTIONS.map((option) => {
-              const selected = formValues.styles.includes(option.value);
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={selected ? "chip-button is-selected" : "chip-button"}
-                  onClick={() => handleToggle("styles", option.value)}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="field-block full-width">
-          <div className="field-heading">
-            <span className="field-label">ИИ-анализ изображения</span>
-            <span className="field-helper">
-              После загрузки фото система удалит фон, определит тип вещи и предложит характеристики.
-            </span>
-          </div>
-
-          <label className={autoRemoveBackground ? "chip-button is-selected" : "chip-button"}>
-            <input
-              type="checkbox"
-              checked={autoRemoveBackground}
-              onChange={(event) => setAutoRemoveBackground(event.target.checked)}
-              hidden
-            />
-            Удалить фон при сохранении
-          </label>
-
-          {analysisLoading ? (
-            <p className="muted-text">Анализируем изображение и подбираем характеристики...</p>
-          ) : null}
-
-          {analysisError ? <p className="error-text">{analysisError}</p> : null}
-          {analysisWarning ? <p className="muted-text">{analysisWarning}</p> : null}
-
-          {analysisResult ? (
-            <div className="analysis-summary">
-              <span className="analysis-pill">
-                Тип: {getSubcategoryLabel(analysisResult.subcategory) || "не определен"}
-              </span>
-              {(analysisResult.colors || []).map((color) => (
-                <span key={color} className="analysis-pill">
-                  Цвет: {getColorLabel(color)}
-                </span>
-              ))}
-              {analysisResult.confidence ? (
-                <span className="analysis-pill">
-                  Точность: {(analysisResult.confidence * 100).toFixed(0)}%
-                </span>
-              ) : null}
+          <div className="field-block full-width">
+            <div className="field-heading">
+              <span className="field-label">Цвета</span>
             </div>
-          ) : null}
-        </div>
-      </div>
+            <div className="color-picker-grid">
+              {COLOR_OPTIONS.map((option) => {
+                const selected = formValues.colors.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={selected ? "color-swatch is-selected" : "color-swatch"}
+                    onClick={() => handleToggle("colors", option.value)}
+                    aria-label={option.label}
+                    title={option.label}
+                  >
+                    <span
+                      className="color-dot"
+                      style={{
+                        backgroundColor: option.hex,
+                        borderColor: option.border,
+                      }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      <button type="submit" className="primary-button primary-button-wide" disabled={loading || analysisLoading}>
-        {loading ? "Сохранение..." : submitLabel}
-      </button>
-            </form>
-     </>
+          <div className="field-block full-width">
+            <div className="field-heading">
+              <span className="field-label">Стили</span>
+            </div>
+            <div className="chip-grid">
+              {STYLE_OPTIONS.map((option) => {
+                const selected = formValues.styles.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={selected ? "chip-button is-selected" : "chip-button"}
+                    onClick={() => handleToggle("styles", option.value)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="field-block full-width">
+            <div className="field-heading">
+              <span className="field-label">ИИ-анализ изображения</span>
+              <span className="field-helper">
+                После загрузки фото система удалит фон, определит тип вещи и предложит характеристики.
+              </span>
+            </div>
+
+            <label className={autoRemoveBackground ? "chip-button is-selected" : "chip-button"}>
+              <input
+                type="checkbox"
+                checked={autoRemoveBackground}
+                onChange={(event) => setAutoRemoveBackground(event.target.checked)}
+                hidden
+              />
+              Удалить фон при сохранении
+            </label>
+
+            {analysisLoading ? (
+              <p className="muted-text">
+                Анализируем изображение и подбираем характеристики...
+              </p>
+            ) : null}
+
+            {analysisError ? <p className="error-text">{analysisError}</p> : null}
+            {analysisWarning ? <p className="muted-text">{analysisWarning}</p> : null}
+
+            {analysisResult ? (
+              <div className="analysis-summary">
+                <span className="analysis-pill">
+                  Тип: {getSubcategoryLabel(analysisResult.subcategory) || "не определен"}
+                </span>
+                {(analysisResult.colors || []).map((color) => (
+                  <span key={color} className="analysis-pill">
+                    Цвет: {getColorLabel(color)}
+                  </span>
+                ))}
+                {analysisResult.confidence ? (
+                  <span className="analysis-pill">
+                    Точность: {(analysisResult.confidence * 100).toFixed(0)}%
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          className="primary-button primary-button-wide"
+          disabled={loading || analysisLoading}
+        >
+          {loading ? "Сохранение..." : submitLabel}
+        </button>
+      </form>
+    </>
   );
 }

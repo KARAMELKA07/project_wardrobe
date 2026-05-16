@@ -4,6 +4,7 @@ import { getCategoryPlaceholderUrl, resolveItemImageUrl } from "../api/client";
 import {
   getColorLabel,
   getFitLabel,
+  getItemMetadataSupport,
   getLayerLevelLabel,
   getStyleLabel,
   getSubcategoryLabel,
@@ -20,6 +21,8 @@ export default function ClothingItemDetailsCard({
   deleting = false,
   onDelete,
 }) {
+  const metadataSupport = getItemMetadataSupport(item.category);
+
   return (
     <div className="item-detail-card">
       <img
@@ -55,21 +58,31 @@ export default function ClothingItemDetailsCard({
           <p>
             <strong>Формальность:</strong> {translateFormality(item.formality)}
           </p>
-          <p>
-            <strong>Посадка:</strong> {formatItemValue(getFitLabel(item.fit))}
-          </p>
-          <p>
-            <strong>Слой:</strong> {formatItemValue(getLayerLevelLabel(item.layer_level))}
-          </p>
-          <p>
-            <strong>Утепление:</strong> {item.insulation_rating ?? 0}
-          </p>
-          <p>
-            <strong>Защита от дождя:</strong> {item.waterproof ? "да" : "нет"}
-          </p>
-          <p>
-            <strong>Защита от ветра:</strong> {item.windproof ? "да" : "нет"}
-          </p>
+          {metadataSupport.supportsFit ? (
+            <p>
+              <strong>Посадка:</strong> {formatItemValue(getFitLabel(item.fit))}
+            </p>
+          ) : null}
+          {metadataSupport.supportsLayerLevel ? (
+            <p>
+              <strong>Слой:</strong> {formatItemValue(getLayerLevelLabel(item.layer_level))}
+            </p>
+          ) : null}
+          {metadataSupport.supportsInsulation ? (
+            <p>
+              <strong>Утепление:</strong> {item.insulation_rating ?? 0}
+            </p>
+          ) : null}
+          {metadataSupport.supportsWaterproof ? (
+            <p>
+              <strong>Защита от дождя:</strong> {item.waterproof ? "да" : "нет"}
+            </p>
+          ) : null}
+          {metadataSupport.supportsWindproof ? (
+            <p>
+              <strong>Защита от ветра:</strong> {item.windproof ? "да" : "нет"}
+            </p>
+          ) : null}
         </div>
 
         <div className="item-detail-actions">

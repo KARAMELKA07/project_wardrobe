@@ -348,6 +348,51 @@ const LAYER_LEVEL_LABELS = LAYER_LEVEL_OPTIONS.reduce((acc, entry) => {
   return acc;
 }, {});
 
+const ITEM_METADATA_SUPPORT = {
+  top: {
+    supportsFit: true,
+    supportsLayerLevel: true,
+    supportsInsulation: true,
+    supportsWaterproof: false,
+    supportsWindproof: false,
+  },
+  dress: {
+    supportsFit: true,
+    supportsLayerLevel: true,
+    supportsInsulation: true,
+    supportsWaterproof: false,
+    supportsWindproof: false,
+  },
+  bottom: {
+    supportsFit: true,
+    supportsLayerLevel: false,
+    supportsInsulation: true,
+    supportsWaterproof: false,
+    supportsWindproof: false,
+  },
+  shoes: {
+    supportsFit: false,
+    supportsLayerLevel: false,
+    supportsInsulation: true,
+    supportsWaterproof: true,
+    supportsWindproof: false,
+  },
+  outerwear: {
+    supportsFit: true,
+    supportsLayerLevel: true,
+    supportsInsulation: true,
+    supportsWaterproof: true,
+    supportsWindproof: true,
+  },
+  accessory: {
+    supportsFit: false,
+    supportsLayerLevel: false,
+    supportsInsulation: false,
+    supportsWaterproof: false,
+    supportsWindproof: false,
+  },
+};
+
 export function normalizeCatalogValue(value) {
   const normalizedValue = normalizeValue(value);
   return SHOE_SUBCATEGORY_ALIAS_MAP[normalizedValue] || normalizedValue;
@@ -379,6 +424,18 @@ export function getFitLabel(value) {
 
 export function getLayerLevelLabel(value) {
   return LAYER_LEVEL_LABELS[normalizeValue(value)] || value || "";
+}
+
+export function getItemMetadataSupport(category) {
+  return (
+    ITEM_METADATA_SUPPORT[normalizeCatalogValue(category)] || {
+      supportsFit: false,
+      supportsLayerLevel: false,
+      supportsInsulation: false,
+      supportsWaterproof: false,
+      supportsWindproof: false,
+    }
+  );
 }
 
 export function getDefaultFitValue(subcategory) {
@@ -423,5 +480,43 @@ export function getDefaultProtectionFlags(subcategory) {
   return {
     waterproof: WATERPROOF_SUBCATEGORIES.has(normalizedSubcategory),
     windproof: WINDPROOF_SUBCATEGORIES.has(normalizedSubcategory),
+  };
+}
+
+export function buildItemMetadataDefaults(category, subcategory) {
+  const support = getItemMetadataSupport(category);
+  const protectionFlags = getDefaultProtectionFlags(subcategory);
+
+  return {
+    fit: support.supportsFit ? getDefaultFitValue(subcategory) : "",
+    layer_level: support.supportsLayerLevel
+      ? getDefaultLayerLevelValue(subcategory, category)
+      : "",
+    insulation_rating: support.supportsInsulation
+      ? getDefaultInsulationValue(subcategory)
+      : "0",
+    waterproof: support.supportsWaterproof ? protectionFlags.waterproof : false,
+    windproof: support.supportsWindproof ? protectionFlags.windproof : false,
+  };
+}
+
+export function sanitizeItemMetadata(category, subcategory, values = {}) {
+  const defaults = buildItemMetadataDefaults(category, subcategory);
+  const support = getItemMetadataSupport(category);
+
+  return {
+    fit: support.supportsFit ? values.fit || defaults.fit : "",
+    layer_level: support.supportsLayerLevel
+      ? values.layer_level || defaults.layer_level
+      : "",
+    insulation_rating: support.supportsInsulation
+      ? String(values.insulation_rating ?? defaults.insulation_rating)
+      : "0",
+    waterproof: support.supportsWaterproof
+      ? Boolean(values.waterproof ?? defaults.waterproof)
+      : false,
+    windproof: support.supportsWindproof
+      ? Boolean(values.windproof ?? defaults.windproof)
+      : false,
   };
 }
