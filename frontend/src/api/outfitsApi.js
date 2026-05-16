@@ -36,6 +36,14 @@ export function uploadOutfitPhoto(token, outfitId, formData) {
 }
 
 
+export function deleteSavedOutfit(token, outfitId) {
+  return apiFetch(`/outfits/${outfitId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+
 export function sendOutfitFeedback(token, outfitId, reaction) {
   return apiFetch(`/outfits/${outfitId}/feedback`, {
     method: "POST",

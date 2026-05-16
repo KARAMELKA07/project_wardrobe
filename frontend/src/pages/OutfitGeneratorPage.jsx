@@ -1,24 +1,152 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchItems } from "../api/itemsApi";
-import { generateOutfits, saveOutfit, uploadOutfitPhoto } from "../api/outfitsApi";
+import {
+  deleteSavedOutfit,
+  generateOutfits,
+  saveOutfit,
+  uploadOutfitPhoto,
+} from "../api/outfitsApi";
 import OutfitCard from "../components/OutfitCard";
+import { COLOR_OPTIONS, STYLE_OPTIONS } from "../data/clothingOptions";
 import useAuth from "../hooks/useAuth";
 import useCurrentWeather from "../hooks/useCurrentWeather";
 import { translateCategory } from "../utils/i18n";
 import { resolveWeatherLocation } from "../utils/weatherLocation";
 
-
 const INITIAL_FORM = {
   event_type: "office",
-  preferred_colors: "",
+  preferred_colors: [],
   preferred_style: "",
   temperature: "",
   weather_condition: "",
   anchor_item_id: "",
-  constraints: "",
+  constraints: [],
 };
 
+const CONSTRAINT_OPTIONS = [
+  { value: "no_heels", label: "Без каблуков" },
+  { value: "no_skirts", label: "Без юбок" },
+  { value: "no_bright_colors", label: "Без ярких цветов" },
+  { value: "no_outerwear", label: "Без верхней одежды" },
+];
+
+function toggleArrayValue(currentValues, value) {
+  if (currentValues.includes(value)) {
+    return currentValues.filter((entry) => entry !== value);
+  }
+
+  return [...currentValues, value];
+}
+
+function buildSelectionSummary(values, options, placeholder) {
+  if (!values.length) {
+    return placeholder;
+  }
+
+  const selectedLabels = options
+    .filter((option) => values.includes(option.value))
+    .map((option) => option.label);
+
+  if (selectedLabels.length <= 2) {
+    return selectedLabels.join(", ");
+  }
+
+  return `${selectedLabels.slice(0, 2).join(", ")} +${selectedLabels.length - 2}`;
+}
+
+function MultiSelectDropdown({
+  label,
+  placeholder,
+  options,
+  values,
+  onToggle,
+  showColorDots = false,
+}) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    function handleClickOutside(event) {
+      if (!dropdownRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div className="multi-select" ref={dropdownRef}>
+      <button
+        type="button"
+        className={open ? "input multi-select-trigger is-open" : "input multi-select-trigger"}
+        onClick={() => setOpen((currentValue) => !currentValue)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={values.length ? "multi-select-summary" : "multi-select-placeholder"}>
+          {buildSelectionSummary(values, options, placeholder)}
+        </span>
+        <span className="multi-select-caret" aria-hidden="true" />
+      </button>
+
+      {open ? (
+        <div
+          className="multi-select-menu"
+          role="listbox"
+          aria-label={label}
+          aria-multiselectable="true"
+        >
+          <div className="multi-select-options">
+            {options.map((option) => {
+              const selected = values.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={selected ? "multi-select-option is-selected" : "multi-select-option"}
+                  onClick={() => onToggle(option.value)}
+                >
+                  <span className="multi-select-option-main">
+                    {showColorDots ? (
+                      <span
+                        className="multi-select-color-dot"
+                        style={{
+                          backgroundColor: option.hex,
+                          borderColor: option.border,
+                        }}
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <span>{option.label}</span>
+                  </span>
+                  <span className="multi-select-check" aria-hidden="true">
+                    {selected ? "Выбрано" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {values.length ? (
+            <button
+              type="button"
+              className="multi-select-clear"
+              onClick={() => values.forEach(onToggle)}
+            >
+              Очистить выбор
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function OutfitGeneratorPage() {
   const { token, user } = useAuth();
@@ -34,6 +162,7 @@ export default function OutfitGeneratorPage() {
   const [resultMessage, setResultMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [deletingOutfit, setDeletingOutfit] = useState(false);
   const [error, setError] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -58,7 +187,9 @@ export default function OutfitGeneratorPage() {
     setFormValues((currentValues) => ({
       ...currentValues,
       temperature:
-        currentValues.temperature === "" && weather.temperature !== null && weather.temperature !== undefined
+        currentValues.temperature === "" &&
+        weather.temperature !== null &&
+        weather.temperature !== undefined
           ? String(weather.temperature)
           : currentValues.temperature,
       weather_condition:
@@ -80,6 +211,13 @@ export default function OutfitGeneratorPage() {
   function handleChange(event) {
     const { name, value } = event.target;
     setFormValues((currentValues) => ({ ...currentValues, [name]: value }));
+  }
+
+  function handleToggle(fieldName, value) {
+    setFormValues((currentValues) => ({
+      ...currentValues,
+      [fieldName]: toggleArrayValue(currentValues[fieldName], value),
+    }));
   }
 
   async function handleSubmit(event) {
@@ -170,6 +308,45 @@ export default function OutfitGeneratorPage() {
     }
   }
 
+  async function handleDeleteSavedOutfit(outfit) {
+    if (!outfit?.id) {
+      return;
+    }
+
+    setDeletingOutfit(true);
+    setError("");
+    setResultMessage("");
+
+    try {
+      await deleteSavedOutfit(token, outfit.id);
+
+      setGeneratedOutfits((currentOutfits) =>
+        currentOutfits.map((entry) =>
+          entry.id === outfit.id
+            ? {
+                ...entry,
+                id: undefined,
+                styled_photo_url: null,
+              }
+            : entry,
+        ),
+      );
+      setSavedKeys((currentKeys) => {
+        const nextKeys = { ...currentKeys };
+        delete nextKeys[outfit.id];
+        if (outfit.name) {
+          delete nextKeys[outfit.name];
+        }
+        return nextKeys;
+      });
+      setResultMessage("Образ удален из сохраненных.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setDeletingOutfit(false);
+    }
+  }
+
   function showPreviousOutfit() {
     setActiveIndex((currentIndex) =>
       currentIndex === 0 ? generatedOutfits.length - 1 : currentIndex - 1,
@@ -210,24 +387,35 @@ export default function OutfitGeneratorPage() {
             </select>
           </label>
 
-          <label>
-            Предпочтительные цвета
-            <input
-              className="input"
-              name="preferred_colors"
-              value={formValues.preferred_colors}
-              onChange={handleChange}
+          <div className="field-block">
+            <div className="field-heading">
+              <span className="field-label">Предпочтительные цвета</span>
+            </div>
+            <MultiSelectDropdown
+              label="Предпочтительные цвета"
+              placeholder="Выберите цвета"
+              options={COLOR_OPTIONS}
+              values={formValues.preferred_colors}
+              onToggle={(value) => handleToggle("preferred_colors", value)}
+              showColorDots
             />
-          </label>
+          </div>
 
           <label>
             Предпочтительный стиль
-            <input
+            <select
               className="input"
               name="preferred_style"
               value={formValues.preferred_style}
               onChange={handleChange}
-            />
+            >
+              <option value="">Любой стиль</option>
+              {STYLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label>
@@ -276,18 +464,25 @@ export default function OutfitGeneratorPage() {
             />
           </label>
 
-          <label className="full-width">
-            Ограничения
-            <input
-              className="input"
-              name="constraints"
-              value={formValues.constraints}
-              onChange={handleChange}
+          <div className="field-block full-width">
+            <div className="field-heading">
+              <span className="field-label">Ограничения</span>
+            </div>
+            <MultiSelectDropdown
+              label="Ограничения"
+              placeholder="Выберите ограничения"
+              options={CONSTRAINT_OPTIONS}
+              values={formValues.constraints}
+              onToggle={(value) => handleToggle("constraints", value)}
             />
-          </label>
+          </div>
         </div>
 
-        <button type="submit" className="primary-button primary-button-wide" disabled={loading}>
+        <button
+          type="submit"
+          className="primary-button primary-button-wide"
+          disabled={loading}
+        >
           {loading ? "Подбор..." : "Создать образы"}
         </button>
       </form>
@@ -306,8 +501,10 @@ export default function OutfitGeneratorPage() {
           outfit={activeOutfit}
           onSave={handleSave}
           isSaved={Boolean(savedKeys[activeOutfit.id || activeOutfit.name])}
+          onDelete={handleDeleteSavedOutfit}
           onPhotoUpload={handlePhotoUpload}
           isUploadingPhoto={uploadingPhoto}
+          isDeleting={deletingOutfit}
           boardBadge={`${activeIndex + 1}/${generatedOutfits.length}`}
           onPrevious={showPreviousOutfit}
           onNext={showNextOutfit}

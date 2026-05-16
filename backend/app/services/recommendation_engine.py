@@ -17,6 +17,7 @@ FEATURE_WEIGHTS = {
 
 ROLE_ORDER = {
     "top": 0,
+    "dress": 0,
     "bottom": 1,
     "shoes": 2,
     "outerwear": 3,
@@ -148,6 +149,7 @@ COMPLEMENTARY_FAMILY_PAIRS = {
 ROLE_COLOR_WEIGHTS = {
     "outerwear": 3.1,
     "top": 3.0,
+    "dress": 3.3,
     "bottom": 2.6,
     "shoes": 1.2,
     "accessory": 0.8,
@@ -166,35 +168,27 @@ EVENT_LABELS = {
     "travel": "поездка",
     "date": "свидание",
 }
-WINTER_SHOE_TYPES = {"winter_boots", "felt_boots", "warm_boots", "snow_boots"}
-COLD_SHOE_TYPES = WINTER_SHOE_TYPES | {
-    "demi_boots",
-    "ankle_boots",
-    "boots",
-    "closed_shoes",
+SHOE_SUBCATEGORY_ALIASES = {
+    "winter_boots": "boots",
+    "felt_boots": "boots",
+    "warm_boots": "boots",
+    "snow_boots": "boots",
+    "demi_boots": "boots",
+    "closed_shoes": "shoes",
+    "loafers": "shoes",
+    "summer_sneakers": "sneakers",
+    "espadrilles": "shoes",
+    "flip_flops": "slippers",
+    "heels": "pumps",
+    "high_heels": "pumps",
 }
-MID_SHOE_TYPES = {
-    "demi_boots",
-    "ankle_boots",
-    "boots",
-    "closed_shoes",
-    "sneakers",
-    "loafers",
-    "pumps",
-    "summer_sneakers",
-}
-HOT_SHOE_TYPES = {
-    "sandals",
-    "flip_flops",
-    "slippers",
-    "summer_sneakers",
-    "espadrilles",
-    "loafers",
-    "sneakers",
-}
-OPEN_SHOE_TYPES = {"sandals", "flip_flops", "slippers", "espadrilles"}
-RAIN_SAFE_SHOE_TYPES = COLD_SHOE_TYPES | {"sneakers", "summer_sneakers"}
-SNOW_SAFE_SHOE_TYPES = WINTER_SHOE_TYPES | {"demi_boots", "ankle_boots", "boots"}
+WINTER_SHOE_TYPES = {"boots"}
+COLD_SHOE_TYPES = WINTER_SHOE_TYPES | {"ankle_boots", "shoes", "sneakers"}
+MID_SHOE_TYPES = {"ankle_boots", "boots", "flats", "pumps", "shoes", "sneakers"}
+HOT_SHOE_TYPES = {"sandals", "slippers", "sneakers"}
+OPEN_SHOE_TYPES = {"sandals", "slippers"}
+RAIN_SAFE_SHOE_TYPES = COLD_SHOE_TYPES | {"sneakers"}
+SNOW_SAFE_SHOE_TYPES = {"ankle_boots", "boots"}
 WARM_TOP_TYPES = {"sweater", "hoodie", "cardigan", "turtleneck", "sweatshirt"}
 LIGHT_TOP_TYPES = {"t_shirt", "shirt", "blouse", "crop_top", "polo"}
 WARM_BOTTOM_TYPES = {"jeans", "trousers", "joggers", "leggings", "culottes"}
@@ -328,9 +322,9 @@ FITTED_SUBCATEGORIES = {
     "turtleneck",
     "blazer",
     "trousers",
+    "flats",
     "pumps",
-    "loafers",
-    "closed_shoes",
+    "shoes",
 }
 RELAXED_SUBCATEGORIES = {
     "t_shirt",
@@ -350,10 +344,10 @@ EVENT_DISALLOWED_STYLES = {
     "party": {"sport"},
 }
 EVENT_DISALLOWED_SUBCATEGORIES = {
-    "office": {"flip_flops", "slippers", "felt_boots", "shorts", "hoodie"},
-    "evening": {"flip_flops", "slippers", "felt_boots", "joggers", "hoodie"},
-    "party": {"felt_boots", "snow_boots", "flip_flops"},
-    "sport": {"blazer", "coat", "pumps", "loafers"},
+    "office": {"slippers", "shorts", "hoodie"},
+    "evening": {"slippers", "joggers", "hoodie"},
+    "party": {"slippers"},
+    "sport": {"blazer", "coat", "pumps", "shoes"},
 }
 
 
@@ -390,6 +384,7 @@ class RecommendationEngine:
             return []
 
         tops = self._build_pool(categorized_items["top"], anchor_item, "top")
+        dresses = self._build_pool(categorized_items["dress"], anchor_item, "dress")
         bottoms = self._build_pool(categorized_items["bottom"], anchor_item, "bottom")
         shoes = self._build_pool(categorized_items["shoes"], anchor_item, "shoes")
         outerwear = self._build_pool(
@@ -405,7 +400,7 @@ class RecommendationEngine:
             allow_empty=True,
         )
 
-        if not tops or not bottoms or not shoes:
+        if not shoes or (not dresses and (not tops or not bottoms)):
             return []
 
         constraints = self._normalize_tokens(request_context.get("constraints"))
@@ -439,6 +434,44 @@ class RecommendationEngine:
                     candidate_with_accessory,
                     constraints,
                     request_context,
+                    )
+                ):
+                    candidates.append(candidate_with_accessory)
+
+                for outerwear_item in outerwear[:MAX_OUTERWEAR_POOL]:
+                    if outerwear_item is None:
+                        continue
+                    layered_candidate = list(candidate_with_accessory) + [
+                        self._make_candidate_entry("outerwear", outerwear_item)
+                    ]
+                    if self._is_valid_candidate(
+                        layered_candidate,
+                        constraints,
+                        request_context,
+                    ):
+                        candidates.append(layered_candidate)
+
+        for dress_item, shoes_item in product(
+            dresses[:MAX_PRIMARY_POOL],
+            shoes[:MAX_PRIMARY_POOL],
+        ):
+            base_candidate = [
+                self._make_candidate_entry("dress", dress_item),
+                self._make_candidate_entry("shoes", shoes_item),
+            ]
+            for accessory_item in accessory_pool:
+                candidate_with_accessory = list(base_candidate)
+                if accessory_item is not None:
+                    candidate_with_accessory.append(
+                        self._make_candidate_entry("accessory", accessory_item)
+                    )
+
+                if (
+                    (not anchor_item or anchor_item.category != "outerwear")
+                    and self._is_valid_candidate(
+                        candidate_with_accessory,
+                        constraints,
+                        request_context,
                     )
                 ):
                     candidates.append(candidate_with_accessory)
@@ -795,7 +828,10 @@ class RecommendationEngine:
 
     def score_completeness(self, candidate, request_context=None):
         roles = {entry["role"] for entry in candidate}
-        required_roles = {"top", "bottom", "shoes"}
+        if "dress" in roles:
+            required_roles = {"dress", "shoes"}
+        else:
+            required_roles = {"top", "bottom", "shoes"}
         matched_roles = len(roles & required_roles)
         base_score = matched_roles / len(required_roles)
         request_context = request_context or {}
@@ -816,14 +852,15 @@ class RecommendationEngine:
             return 0.3
 
         roles = set(role_counts)
-        if not {"top", "bottom", "shoes"}.issubset(roles):
+        has_base_outfit = {"top", "bottom", "shoes"}.issubset(roles) or {"dress", "shoes"}.issubset(roles)
+        if not has_base_outfit:
             return 0.35
 
         has_outerwear = "outerwear" in roles
         temperature = request_context.get("temperature")
         weather_condition = self._normalize_token(request_context.get("weather_condition"))
 
-        if has_outerwear and "top" not in roles:
+        if has_outerwear and not ({"top", "dress"} & roles):
             return 0.3
         if self._requires_outerwear(request_context) and not has_outerwear:
             return 0.2
@@ -930,6 +967,7 @@ class RecommendationEngine:
     def _categorize_items(self, clothing_items):
         categorized = {
             "top": [],
+            "dress": [],
             "bottom": [],
             "shoes": [],
             "outerwear": [],
@@ -961,7 +999,8 @@ class RecommendationEngine:
             return False
 
         roles = {entry["role"] for entry in candidate}
-        if not {"top", "bottom", "shoes"}.issubset(roles):
+        has_base_outfit = {"top", "bottom", "shoes"}.issubset(roles) or {"dress", "shoes"}.issubset(roles)
+        if not has_base_outfit:
             return False
 
         if self._violates_hard_constraints(candidate, constraints):
@@ -1022,6 +1061,8 @@ class RecommendationEngine:
         if value is None:
             return None
         token = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+        if token in SHOE_SUBCATEGORY_ALIASES:
+            return SHOE_SUBCATEGORY_ALIASES[token]
         return token or None
 
     def _normalize_color(self, value):
@@ -1127,9 +1168,9 @@ class RecommendationEngine:
 
         formality = self._normalize_token(item.formality)
         subcategory = self._normalize_token(item.subcategory)
-        if formality in {"formal", "smart"} or subcategory in {"blazer", "loafers", "pumps"}:
+        if formality in {"formal", "smart"} or subcategory in {"blazer", "flats", "pumps", "shoes"}:
             return {"classic"}
-        if subcategory in {"hoodie", "joggers", "sneakers", "summer_sneakers"}:
+        if subcategory in {"hoodie", "joggers", "sneakers"}:
             return {"casual"}
         return {"casual"}
 
@@ -1158,27 +1199,27 @@ class RecommendationEngine:
     def _score_shoe_event_fit(self, item, event_type):
         subcategory = self._normalize_token(item.subcategory)
         if event_type == "office":
-            if subcategory in {"loafers", "pumps", "closed_shoes", "boots", "ankle_boots"}:
+            if subcategory in {"ankle_boots", "boots", "flats", "pumps", "shoes"}:
                 return 1.0
-            if subcategory in {"sneakers", "summer_sneakers"}:
+            if subcategory in {"sneakers"}:
                 return 0.7
             return 0.25
 
         if event_type in {"evening", "party", "date"}:
-            if subcategory in {"pumps", "heels", "loafers", "closed_shoes", "boots", "ankle_boots"}:
+            if subcategory in {"ankle_boots", "boots", "flats", "pumps", "shoes"}:
                 return 1.0
-            if subcategory in {"sneakers", "summer_sneakers"}:
+            if subcategory in {"sneakers"}:
                 return 0.65
             return 0.2
 
         if event_type == "sport":
-            if subcategory in {"sneakers", "summer_sneakers"}:
+            if subcategory in {"sneakers"}:
                 return 1.0
             if subcategory in {"boots", "ankle_boots"}:
                 return 0.45
             return 0.2
 
-        return 0.9 if subcategory not in {"pumps", "heels"} else 0.75
+        return 0.9 if subcategory != "pumps" else 0.75
 
     def _score_item_event_fit(self, item, event_type, event_rule):
         allowed_styles = {
@@ -2036,6 +2077,7 @@ class RecommendationEngine:
 
         base_warmth = {
             "top": 1.2,
+            "dress": 1.3,
             "bottom": 1.3,
             "shoes": 0.8,
             "outerwear": 2.8,
@@ -2067,7 +2109,7 @@ class RecommendationEngine:
         elif item.category == "shoes":
             if item_subcategory in WINTER_SHOE_TYPES:
                 base_warmth += 1.2
-            elif item_subcategory in {"demi_boots", "ankle_boots", "boots", "closed_shoes"}:
+            elif item_subcategory in {"ankle_boots", "boots", "shoes"}:
                 base_warmth += 0.7
             elif item_subcategory in OPEN_SHOE_TYPES:
                 base_warmth -= 0.5
@@ -2134,25 +2176,25 @@ class RecommendationEngine:
         if temperature <= -5:
             if subcategory in WINTER_SHOE_TYPES:
                 return 1.0
-            if subcategory in {"demi_boots", "ankle_boots", "boots"} or season == "winter":
+            if subcategory in {"ankle_boots", "boots"} or season == "winter":
                 return 0.65
             return 0.05
 
         if temperature <= 10:
-            if subcategory in {"demi_boots", "ankle_boots", "boots", "closed_shoes", "sneakers"}:
+            if subcategory in {"ankle_boots", "boots", "shoes", "sneakers"}:
                 return 1.0
-            if subcategory in WINTER_SHOE_TYPES or subcategory in {"loafers", "pumps"}:
+            if subcategory in WINTER_SHOE_TYPES or subcategory in {"flats", "pumps"}:
                 return 0.6
             return 0.15
 
         if temperature <= 20:
-            if subcategory in MID_SHOE_TYPES | {"sandals", "espadrilles"}:
+            if subcategory in MID_SHOE_TYPES | {"sandals"}:
                 return 1.0
             return 0.3
 
         if subcategory in HOT_SHOE_TYPES:
             return 1.0
-        if subcategory in {"pumps", "closed_shoes"}:
+        if subcategory in {"flats", "pumps", "shoes"}:
             return 0.55
         return 0.15
 
@@ -2179,7 +2221,7 @@ class RecommendationEngine:
         if normalized_weather == "rain":
             if subcategory in RAIN_SAFE_SHOE_TYPES:
                 return 1.0
-            if subcategory in {"loafers", "pumps"}:
+            if subcategory in {"flats", "pumps"}:
                 return 0.35
             return 0.1
 
@@ -2195,7 +2237,7 @@ class RecommendationEngine:
             if temperature is not None and temperature >= 22:
                 if subcategory in HOT_SHOE_TYPES:
                     return 1.0
-                if subcategory in {"sneakers", "loafers"}:
+                if subcategory in {"flats", "shoes", "sneakers"}:
                     return 0.75
                 return 0.4
             return 0.9 if subcategory not in WINTER_SHOE_TYPES else 0.5
@@ -2251,7 +2293,7 @@ class RecommendationEngine:
             attributes.discard(None)
 
             if normalized_constraint in {"no_heels", "avoid_heels"}:
-                if category == "shoes" and subcategory in {"heels", "high_heels", "pumps"}:
+                if category == "shoes" and subcategory == "pumps":
                     return True
             elif normalized_constraint in {"no_skirts", "avoid_skirts"}:
                 if category == "bottom" and subcategory == "skirt":

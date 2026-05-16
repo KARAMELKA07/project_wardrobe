@@ -9,6 +9,7 @@ import {
   INSULATION_OPTIONS,
   LAYER_LEVEL_OPTIONS,
   STYLE_OPTIONS,
+  buildRussianItemTitle,
   getColorLabel,
   getDefaultFitValue,
   getDefaultInsulationValue,
@@ -20,9 +21,7 @@ import {
 } from "../data/clothingOptions";
 import useAuth from "../hooks/useAuth";
 import {
-  translateLayerLevel,
   translateFormality,
-  translateFit,
   translateSeason,
 } from "../utils/i18n";
 
@@ -93,13 +92,11 @@ function toggleArrayValue(currentValues, value) {
   return [...currentValues, value];
 }
 
-function buildSuggestedTitle(colors, baseTitle) {
-  const cleanBaseTitle = baseTitle || "Новая вещь";
-  if (!colors?.length) {
-    return cleanBaseTitle;
+function buildSuggestedTitle(colors, subcategory, fallbackTitle) {
+  if (colors?.length && subcategory) {
+    return buildRussianItemTitle(colors[0], subcategory, fallbackTitle);
   }
-
-  return `${getColorLabel(colors[0])} ${cleanBaseTitle}`.trim();
+  return String(fallbackTitle || "новая вещь").toLowerCase();
 }
 
 export default function ClothingItemForm({
@@ -113,6 +110,7 @@ export default function ClothingItemForm({
   const { token } = useAuth();
   const [formValues, setFormValues] = useState(mapInitialValues(initialValues));
   const [imageFile, setImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState("");
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
   const [analysisWarning, setAnalysisWarning] = useState("");
@@ -129,7 +127,19 @@ export default function ClothingItemForm({
     setAutoRemoveBackground(false);
   }, [initialValues]);
 
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl("");
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(imageFile);
+    setImagePreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [imageFile]);
+
   const availableSubcategories = getSubcategoryOptions(formValues.category);
+  const previewUrl = imagePreviewUrl || (formValues.image_url ? resolveAssetUrl(formValues.image_url) : "");
 
   function handleChange(event) {
     const { name, type, value, checked } = event.target;
@@ -225,6 +235,7 @@ export default function ClothingItemForm({
     const defaultMetadata = buildDefaultMetadata(nextCategory, nextSubcategory);
     const titleSuggestion = buildSuggestedTitle(
       analysis.colors,
+      nextSubcategory,
       analysis.title_suggestion || getSubcategoryLabel(nextSubcategory),
     );
 
@@ -278,15 +289,17 @@ export default function ClothingItemForm({
     await onSubmit(formData);
   }
 
-  return (
-    <form className="surface-card form-card" onSubmit={handleSubmit}>
-      {showHeading ? (
-        <div className="section-heading section-heading-stack">
-          <div>
-            <h1>{headingText}</h1>
-          </div>
-        </div>
-      ) : null}
+    return (
+        <>
+            {showHeading ? (
+                <div className="section-heading section-heading-stack">
+                    <div>
+                        <h1>{headingText}</h1>
+                    </div>
+                </div>
+            ) : null}
+
+            <form className="surface-card form-card" onSubmit={handleSubmit}>
 
       <div className="form-grid">
         <label>
@@ -296,7 +309,7 @@ export default function ClothingItemForm({
             name="title"
             value={formValues.title}
             onChange={handleChange}
-            placeholder="Белая рубашка"
+            placeholder="белая рубашка"
             required
           />
         </label>
@@ -318,7 +331,7 @@ export default function ClothingItemForm({
         </label>
 
         <label>
-          Подкатегория
+          Тип вещи
           <select
             className="input"
             name="subcategory"
@@ -326,7 +339,7 @@ export default function ClothingItemForm({
             onChange={handleChange}
             required
           >
-            <option value="">Выберите подкатегорию</option>
+            <option value="">Выберите тип вещи</option>
             {availableSubcategories.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -413,7 +426,7 @@ export default function ClothingItemForm({
           </select>
         </label>
 
-        <div className="field-block">
+        <div className="field-block image-field">
           <div className="field-heading">
             <span className="field-label">Изображение вещи</span>
           </div>
@@ -426,9 +439,22 @@ export default function ClothingItemForm({
             />
             {imageFile ? imageFile.name : "Выберите файл"}
           </label>
+          {previewUrl ? (
+            <div className="image-preview-card">
+              <img
+                src={previewUrl}
+                alt={formValues.title || "Предпросмотр вещи"}
+                className="image-preview"
+              />
+              <div className="image-preview-meta">
+                <strong>{imageFile ? "Новое изображение" : "Текущее изображение"}</strong>
+                <span>{imageFile?.name || "Изображение уже сохранено"}</span>
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        <div className="field-block">
+        <div className="field-block protection-field">
           <div className="field-heading">
             <span className="field-label">Защитные свойства</span>
           </div>
@@ -551,25 +577,10 @@ export default function ClothingItemForm({
         </div>
       </div>
 
-      {formValues.image_url ? (
-        <div className="inline-media">
-          <img
-            src={resolveAssetUrl(formValues.image_url)}
-            alt={formValues.title}
-            className="inline-thumbnail"
-          />
-          <p className="muted-text">
-            Текущее изображение сохранится, если не загружать новое. Подкатегория:{" "}
-            {getSubcategoryLabel(formValues.subcategory)}. Посадка:{" "}
-            {translateFit(formValues.fit)}. Слой:{" "}
-            {translateLayerLevel(formValues.layer_level)}.
-          </p>
-        </div>
-      ) : null}
-
       <button type="submit" className="primary-button primary-button-wide" disabled={loading || analysisLoading}>
         {loading ? "Сохранение..." : submitLabel}
       </button>
-    </form>
+            </form>
+     </>
   );
 }

@@ -5,81 +5,83 @@ const normalizeValue = (value) =>
     .replace(/-/g, "_")
     .replace(/\s+/g, "_");
 
+const SHOE_SUBCATEGORY_ALIAS_MAP = {
+  winter_boots: "boots",
+  felt_boots: "boots",
+  warm_boots: "boots",
+  demi_boots: "boots",
+  closed_shoes: "shoes",
+  loafers: "shoes",
+  summer_sneakers: "sneakers",
+  espadrilles: "shoes",
+  flip_flops: "slippers",
+  heels: "pumps",
+  high_heels: "pumps",
+};
+
 export const CATEGORY_OPTIONS = [
   { value: "top", label: "Верх" },
+  { value: "dress", label: "Платья" },
   { value: "bottom", label: "Низ" },
   { value: "shoes", label: "Обувь" },
-  { value: "outerwear", label: "Верхний слой" },
-  { value: "accessory", label: "Аксессуар" },
+  { value: "outerwear", label: "Верхняя одежда" },
+  { value: "accessory", label: "Аксессуары" },
 ];
 
 export const SUBCATEGORY_OPTIONS = {
   top: [
     { value: "t_shirt", label: "Футболка" },
     { value: "shirt", label: "Рубашка" },
-    { value: "blouse", label: "Блузка" },
-    { value: "polo", label: "Поло" },
-    { value: "longsleeve", label: "Лонгслив" },
+    { value: "top", label: "Топ" },
+    { value: "kurta", label: "Курта" },
     { value: "sweater", label: "Свитер" },
-    { value: "hoodie", label: "Худи" },
-    { value: "cardigan", label: "Кардиган" },
-    { value: "turtleneck", label: "Водолазка" },
     { value: "sweatshirt", label: "Свитшот" },
-    { value: "vest", label: "Жилет" },
-    { value: "crop_top", label: "Кроп-топ" },
+    { value: "tunic", label: "Туника" },
+    { value: "underwear", label: "Нижнее белье" },
+    { value: "sleepwear", label: "Одежда для сна" },
   ],
+  dress: [{ value: "dress", label: "Платье" }],
   bottom: [
     { value: "jeans", label: "Джинсы" },
     { value: "trousers", label: "Брюки" },
-    { value: "chinos", label: "Чиносы" },
     { value: "joggers", label: "Джоггеры" },
     { value: "leggings", label: "Леггинсы" },
-    { value: "culottes", label: "Кюлоты" },
-    { value: "skirt", label: "Юбка" },
-    { value: "mini_skirt", label: "Мини-юбка" },
-    { value: "midi_skirt", label: "Миди-юбка" },
-    { value: "maxi_skirt", label: "Макси-юбка" },
     { value: "shorts", label: "Шорты" },
+    { value: "skirt", label: "Юбка" },
   ],
   shoes: [
-    { value: "winter_boots", label: "Зимние сапоги" },
-    { value: "felt_boots", label: "Валенки" },
-    { value: "warm_boots", label: "Теплые ботинки" },
-    { value: "demi_boots", label: "Демисезонные ботинки" },
-    { value: "ankle_boots", label: "Ботильоны" },
-    { value: "boots", label: "Ботинки" },
-    { value: "closed_shoes", label: "Закрытые туфли" },
-    { value: "pumps", label: "Туфли" },
-    { value: "loafers", label: "Лоферы" },
+    { value: "shoes", label: "Обувь" },
     { value: "sneakers", label: "Кроссовки" },
-    { value: "summer_sneakers", label: "Летние кроссовки" },
-    { value: "sandals", label: "Босоножки" },
-    { value: "espadrilles", label: "Эспадрильи" },
-    { value: "flip_flops", label: "Шлепки" },
-    { value: "slippers", label: "Сланцы" },
+    { value: "sandals", label: "Сандалии" },
   ],
-  outerwear: [
-    { value: "coat", label: "Пальто" },
-    { value: "jacket", label: "Куртка" },
-    { value: "parka", label: "Парка" },
-    { value: "down_jacket", label: "Пуховик" },
-    { value: "trench", label: "Тренч" },
-    { value: "blazer", label: "Пиджак" },
-    { value: "leather_jacket", label: "Кожаная куртка" },
-    { value: "windbreaker", label: "Ветровка" },
-    { value: "vest_outerwear", label: "Жилет" },
-  ],
+  outerwear: [{ value: "jacket", label: "Куртка" }],
   accessory: [
     { value: "bag", label: "Сумка" },
-    { value: "backpack", label: "Рюкзак" },
-    { value: "scarf", label: "Шарф" },
-    { value: "hat", label: "Шапка" },
-    { value: "cap", label: "Кепка" },
-    { value: "gloves", label: "Перчатки" },
+    { value: "wallet", label: "Кошелек" },
     { value: "belt", label: "Ремень" },
+    { value: "watch", label: "Часы" },
+    { value: "sunglasses", label: "Солнцезащитные очки" },
+    { value: "hat", label: "Головной убор" },
+    { value: "scarf", label: "Шарф" },
+    { value: "socks", label: "Носки" },
     { value: "jewelry", label: "Украшение" },
+    { value: "bracelet", label: "Браслет" },
+    { value: "earrings", label: "Серьги" },
+    { value: "necklace", label: "Ожерелье" },
+    { value: "tie", label: "Галстук" },
   ],
 };
+
+export const ZAPPOS_SHOE_OPTIONS = [
+  { value: "shoes", label: "Обувь" },
+  { value: "ankle_boots", label: "Ботильоны" },
+  { value: "boots", label: "Ботинки" },
+  { value: "flats", label: "Балетки" },
+  { value: "pumps", label: "Туфли" },
+  { value: "sandals", label: "Сандалии" },
+  { value: "slippers", label: "Сланцы" },
+  { value: "sneakers", label: "Кроссовки" },
+];
 
 export const STYLE_OPTIONS = [
   { value: "basic", label: "Базовый" },
@@ -88,14 +90,10 @@ export const STYLE_OPTIONS = [
   { value: "classic", label: "Классика" },
   { value: "business", label: "Деловой" },
   { value: "sport", label: "Спортивный" },
-  { value: "athleisure", label: "Спорт-шик" },
   { value: "street", label: "Стритстайл" },
-  { value: "romantic", label: "Романтичный" },
   { value: "evening", label: "Вечерний" },
   { value: "party", label: "Для вечеринки" },
-  { value: "fashion", label: "Трендовый" },
   { value: "statement", label: "Акцентный" },
-  { value: "boho", label: "Бохо" },
 ];
 
 export const COLOR_OPTIONS = [
@@ -132,181 +130,203 @@ export const LAYER_LEVEL_OPTIONS = [
   { value: "base", label: "Базовый слой" },
   { value: "mid", label: "Утепляющий слой" },
   { value: "outer", label: "Верхний слой" },
-  { value: "support", label: "Поддерживающий аксессуар" },
+  { value: "support", label: "Аксессуар" },
 ];
 
 export const INSULATION_OPTIONS = [
-  { value: "0.2", label: "Очень лёгкая" },
-  { value: "0.6", label: "Лёгкая" },
+  { value: "0.2", label: "Очень легкая" },
+  { value: "0.6", label: "Легкая" },
   { value: "1.0", label: "Умеренная" },
-  { value: "1.5", label: "Тёплая" },
-  { value: "2.0", label: "Очень тёплая" },
+  { value: "1.5", label: "Теплая" },
+  { value: "2.0", label: "Очень теплая" },
   { value: "2.6", label: "Для сильного холода" },
 ];
 
 const DEFAULT_FIT_BY_SUBCATEGORY = {
   t_shirt: "balanced",
   shirt: "fitted",
-  blouse: "fitted",
-  polo: "balanced",
-  longsleeve: "balanced",
+  top: "fitted",
+  kurta: "balanced",
+  dress: "balanced",
   sweater: "loose",
-  hoodie: "oversized",
-  cardigan: "loose",
-  turtleneck: "fitted",
   sweatshirt: "loose",
-  vest: "balanced",
-  crop_top: "fitted",
+  tunic: "balanced",
+  underwear: "fitted",
+  sleepwear: "loose",
   jeans: "balanced",
   trousers: "fitted",
-  chinos: "balanced",
   joggers: "loose",
   leggings: "fitted",
-  culottes: "loose",
-  skirt: "balanced",
-  mini_skirt: "fitted",
-  midi_skirt: "balanced",
-  maxi_skirt: "loose",
   shorts: "balanced",
-  winter_boots: "balanced",
-  felt_boots: "balanced",
-  warm_boots: "balanced",
-  demi_boots: "balanced",
+  skirt: "balanced",
+  shoes: "balanced",
+  sneakers: "balanced",
+  sandals: "fitted",
+  jacket: "balanced",
+  bag: "balanced",
+  wallet: "balanced",
+  belt: "fitted",
+  watch: "fitted",
+  sunglasses: "balanced",
+  hat: "balanced",
+  scarf: "loose",
+  socks: "fitted",
+  jewelry: "fitted",
+  bracelet: "fitted",
+  earrings: "fitted",
+  necklace: "fitted",
+  tie: "fitted",
+};
+
+Object.assign(DEFAULT_FIT_BY_SUBCATEGORY, {
   ankle_boots: "fitted",
   boots: "balanced",
-  closed_shoes: "fitted",
+  flats: "fitted",
   pumps: "fitted",
-  loafers: "fitted",
-  sneakers: "balanced",
-  summer_sneakers: "balanced",
-  sandals: "fitted",
-  espadrilles: "balanced",
-  flip_flops: "loose",
   slippers: "loose",
-  coat: "balanced",
-  jacket: "balanced",
-  parka: "oversized",
-  down_jacket: "oversized",
-  trench: "balanced",
-  blazer: "fitted",
-  leather_jacket: "balanced",
-  windbreaker: "loose",
-  vest_outerwear: "balanced",
-  bag: "balanced",
-  backpack: "balanced",
-  scarf: "loose",
-  hat: "balanced",
-  cap: "balanced",
-  gloves: "fitted",
-  belt: "fitted",
-  jewelry: "fitted",
+});
+
+const SUBCATEGORY_GRAMMAR = {
+  t_shirt: { noun: "футболка", gender: "f" },
+  shirt: { noun: "рубашка", gender: "f" },
+  top: { noun: "топ", gender: "m" },
+  kurta: { noun: "курта", gender: "f" },
+  dress: { noun: "платье", gender: "n" },
+  sweater: { noun: "свитер", gender: "m" },
+  sweatshirt: { noun: "свитшот", gender: "m" },
+  tunic: { noun: "туника", gender: "f" },
+  underwear: { noun: "нижнее белье", gender: "n" },
+  sleepwear: { noun: "одежда для сна", gender: "f" },
+  jeans: { noun: "джинсы", gender: "pl" },
+  trousers: { noun: "брюки", gender: "pl" },
+  joggers: { noun: "джоггеры", gender: "pl" },
+  leggings: { noun: "леггинсы", gender: "pl" },
+  shorts: { noun: "шорты", gender: "pl" },
+  skirt: { noun: "юбка", gender: "f" },
+  shoes: { noun: "обувь", gender: "f" },
+  sneakers: { noun: "кроссовки", gender: "pl" },
+  sandals: { noun: "сандалии", gender: "pl" },
+  jacket: { noun: "куртка", gender: "f" },
+  bag: { noun: "сумка", gender: "f" },
+  wallet: { noun: "кошелек", gender: "m" },
+  belt: { noun: "ремень", gender: "m" },
+  watch: { noun: "часы", gender: "pl" },
+  sunglasses: { noun: "солнцезащитные очки", gender: "pl" },
+  hat: { noun: "головной убор", gender: "m" },
+  scarf: { noun: "шарф", gender: "m" },
+  socks: { noun: "носки", gender: "pl" },
+  jewelry: { noun: "украшение", gender: "n" },
+  bracelet: { noun: "браслет", gender: "m" },
+  earrings: { noun: "серьги", gender: "pl" },
+  necklace: { noun: "ожерелье", gender: "n" },
+  tie: { noun: "галстук", gender: "m" },
+};
+
+Object.assign(SUBCATEGORY_GRAMMAR, {
+  ankle_boots: { noun: "ботильоны", gender: "pl" },
+  boots: { noun: "ботинки", gender: "pl" },
+  flats: { noun: "балетки", gender: "pl" },
+  pumps: { noun: "туфли", gender: "pl" },
+  slippers: { noun: "сланцы", gender: "pl" },
+});
+
+const COLOR_ADJECTIVES = {
+  white: { m: "белый", f: "белая", n: "белое", pl: "белые" },
+  cream: { m: "кремовый", f: "кремовая", n: "кремовое", pl: "кремовые" },
+  black: { m: "черный", f: "черная", n: "черное", pl: "черные" },
+  silver: { m: "серебристый", f: "серебристая", n: "серебристое", pl: "серебристые" },
+  gray: { m: "серый", f: "серая", n: "серое", pl: "серые" },
+  beige: { m: "бежевый", f: "бежевая", n: "бежевое", pl: "бежевые" },
+  camel: { m: "кэмел", f: "кэмел", n: "кэмел", pl: "кэмел" },
+  brown: { m: "коричневый", f: "коричневая", n: "коричневое", pl: "коричневые" },
+  blue: { m: "синий", f: "синяя", n: "синее", pl: "синие" },
+  navy: { m: "темно-синий", f: "темно-синяя", n: "темно-синее", pl: "темно-синие" },
+  turquoise: { m: "бирюзовый", f: "бирюзовая", n: "бирюзовое", pl: "бирюзовые" },
+  green: { m: "зеленый", f: "зеленая", n: "зеленое", pl: "зеленые" },
+  olive: { m: "оливковый", f: "оливковая", n: "оливковое", pl: "оливковые" },
+  red: { m: "красный", f: "красная", n: "красное", pl: "красные" },
+  burgundy: { m: "бордовый", f: "бордовая", n: "бордовое", pl: "бордовые" },
+  yellow: { m: "желтый", f: "желтая", n: "желтое", pl: "желтые" },
+  orange: { m: "оранжевый", f: "оранжевая", n: "оранжевое", pl: "оранжевые" },
+  pink: { m: "розовый", f: "розовая", n: "розовое", pl: "розовые" },
+  lavender: { m: "лавандовый", f: "лавандовая", n: "лавандовое", pl: "лавандовые" },
+  purple: { m: "фиолетовый", f: "фиолетовая", n: "фиолетовое", pl: "фиолетовые" },
 };
 
 const DEFAULT_LAYER_LEVEL_BY_SUBCATEGORY = {
   t_shirt: "base",
   shirt: "base",
-  blouse: "base",
-  polo: "base",
-  longsleeve: "base",
-  crop_top: "base",
-  turtleneck: "base",
+  top: "base",
+  kurta: "base",
+  dress: "base",
+  tunic: "base",
+  underwear: "base",
+  sleepwear: "base",
   sweater: "mid",
-  hoodie: "mid",
-  cardigan: "mid",
   sweatshirt: "mid",
-  vest: "mid",
-  coat: "outer",
   jacket: "outer",
-  parka: "outer",
-  down_jacket: "outer",
-  trench: "outer",
-  blazer: "outer",
-  leather_jacket: "outer",
-  windbreaker: "outer",
-  vest_outerwear: "outer",
   bag: "support",
-  backpack: "support",
-  scarf: "support",
-  hat: "support",
-  cap: "support",
-  gloves: "support",
+  wallet: "support",
   belt: "support",
+  watch: "support",
+  sunglasses: "support",
+  hat: "support",
+  scarf: "support",
+  socks: "support",
   jewelry: "support",
+  bracelet: "support",
+  earrings: "support",
+  necklace: "support",
+  tie: "support",
 };
 
 const DEFAULT_INSULATION_BY_SUBCATEGORY = {
   t_shirt: "0.6",
   shirt: "0.8",
-  blouse: "0.7",
-  polo: "0.7",
-  longsleeve: "1.0",
-  crop_top: "0.2",
+  top: "0.5",
+  kurta: "0.8",
+  dress: "0.8",
   sweater: "1.8",
-  hoodie: "1.7",
-  cardigan: "1.4",
-  turtleneck: "1.5",
   sweatshirt: "1.5",
-  vest: "1.1",
+  tunic: "0.8",
+  underwear: "0.2",
+  sleepwear: "0.6",
   jeans: "1.4",
   trousers: "1.2",
-  chinos: "1.1",
   joggers: "1.4",
   leggings: "1.0",
-  culottes: "0.9",
-  skirt: "0.8",
-  mini_skirt: "0.5",
-  midi_skirt: "0.8",
-  maxi_skirt: "0.9",
   shorts: "0.3",
-  winter_boots: "2.0",
-  felt_boots: "2.2",
-  warm_boots: "1.9",
-  demi_boots: "1.5",
-  ankle_boots: "1.4",
-  boots: "1.3",
-  closed_shoes: "1.0",
-  pumps: "0.8",
-  loafers: "0.8",
+  skirt: "0.8",
+  shoes: "0.8",
   sneakers: "0.9",
-  summer_sneakers: "0.6",
   sandals: "0.2",
-  espadrilles: "0.3",
-  flip_flops: "0.1",
-  slippers: "0.1",
-  coat: "2.4",
   jacket: "1.7",
-  parka: "2.6",
-  down_jacket: "2.8",
-  trench: "1.5",
-  blazer: "1.2",
-  leather_jacket: "1.6",
-  windbreaker: "1.2",
-  vest_outerwear: "1.2",
   scarf: "0.5",
   hat: "0.4",
-  gloves: "0.4",
+  socks: "0.3",
 };
 
-const WATERPROOF_SUBCATEGORIES = new Set([
-  "trench",
-  "parka",
-  "down_jacket",
-  "windbreaker",
-  "jacket",
-]);
+Object.assign(DEFAULT_INSULATION_BY_SUBCATEGORY, {
+  ankle_boots: "1.4",
+  boots: "1.5",
+  flats: "0.7",
+  pumps: "0.8",
+  slippers: "0.1",
+});
 
-const WINDPROOF_SUBCATEGORIES = new Set([
-  "coat",
-  "parka",
-  "down_jacket",
-  "windbreaker",
-  "leather_jacket",
-]);
+const WATERPROOF_SUBCATEGORIES = new Set(["jacket"]);
+const WINDPROOF_SUBCATEGORIES = new Set(["jacket"]);
 
-const SUBCATEGORY_LABELS = Object.values(SUBCATEGORY_OPTIONS).flat().reduce((acc, entry) => {
-  acc[entry.value] = entry.label;
-  return acc;
-}, {});
+const SUBCATEGORY_LABELS = Object.values(SUBCATEGORY_OPTIONS)
+  .flat()
+  .reduce((acc, entry) => {
+    acc[entry.value] = entry.label;
+    return acc;
+  }, {});
+
+ZAPPOS_SHOE_OPTIONS.forEach((entry) => {
+  SUBCATEGORY_LABELS[entry.value] = entry.label;
+});
 
 const STYLE_LABELS = STYLE_OPTIONS.reduce((acc, entry) => {
   acc[entry.value] = entry.label;
@@ -329,15 +349,20 @@ const LAYER_LEVEL_LABELS = LAYER_LEVEL_OPTIONS.reduce((acc, entry) => {
 }, {});
 
 export function normalizeCatalogValue(value) {
-  return normalizeValue(value);
+  const normalizedValue = normalizeValue(value);
+  return SHOE_SUBCATEGORY_ALIAS_MAP[normalizedValue] || normalizedValue;
 }
 
 export function getSubcategoryOptions(category) {
-  return SUBCATEGORY_OPTIONS[normalizeValue(category)] || [];
+  const normalizedCategory = normalizeCatalogValue(category);
+  if (normalizedCategory === "shoes") {
+    return ZAPPOS_SHOE_OPTIONS;
+  }
+  return SUBCATEGORY_OPTIONS[normalizedCategory] || [];
 }
 
 export function getSubcategoryLabel(value) {
-  return SUBCATEGORY_LABELS[normalizeValue(value)] || value || "";
+  return SUBCATEGORY_LABELS[normalizeCatalogValue(value)] || value || "";
 }
 
 export function getStyleLabel(value) {
@@ -357,16 +382,19 @@ export function getLayerLevelLabel(value) {
 }
 
 export function getDefaultFitValue(subcategory) {
-  return DEFAULT_FIT_BY_SUBCATEGORY[normalizeValue(subcategory)] || "balanced";
+  return DEFAULT_FIT_BY_SUBCATEGORY[normalizeCatalogValue(subcategory)] || "balanced";
 }
 
 export function getDefaultLayerLevelValue(subcategory, category) {
-  const normalizedSubcategory = normalizeValue(subcategory);
+  const normalizedSubcategory = normalizeCatalogValue(subcategory);
   if (DEFAULT_LAYER_LEVEL_BY_SUBCATEGORY[normalizedSubcategory]) {
     return DEFAULT_LAYER_LEVEL_BY_SUBCATEGORY[normalizedSubcategory];
   }
 
-  const normalizedCategory = normalizeValue(category);
+  const normalizedCategory = normalizeCatalogValue(category);
+  if (normalizedCategory === "dress") {
+    return "base";
+  }
   if (normalizedCategory === "outerwear") {
     return "outer";
   }
@@ -376,12 +404,22 @@ export function getDefaultLayerLevelValue(subcategory, category) {
   return "base";
 }
 
+export function buildRussianItemTitle(color, subcategory, fallbackTitle = "вещь") {
+  const normalizedSubcategory = normalizeCatalogValue(subcategory);
+  const grammar = SUBCATEGORY_GRAMMAR[normalizedSubcategory] || {
+    noun: String(fallbackTitle || "вещь").toLowerCase(),
+    gender: "f",
+  };
+  const adjective = COLOR_ADJECTIVES[normalizeValue(color)]?.[grammar.gender];
+  return [adjective, grammar.noun].filter(Boolean).join(" ").trim();
+}
+
 export function getDefaultInsulationValue(subcategory) {
-  return DEFAULT_INSULATION_BY_SUBCATEGORY[normalizeValue(subcategory)] || "0.6";
+  return DEFAULT_INSULATION_BY_SUBCATEGORY[normalizeCatalogValue(subcategory)] || "0.6";
 }
 
 export function getDefaultProtectionFlags(subcategory) {
-  const normalizedSubcategory = normalizeValue(subcategory);
+  const normalizedSubcategory = normalizeCatalogValue(subcategory);
   return {
     waterproof: WATERPROOF_SUBCATEGORIES.has(normalizedSubcategory),
     windproof: WINDPROOF_SUBCATEGORIES.has(normalizedSubcategory),

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { getCategoryPlaceholderUrl, resolveAssetUrl, resolveItemImageUrl } from "../api/client";
-import { fetchSavedOutfits, uploadOutfitPhoto } from "../api/outfitsApi";
+import { deleteSavedOutfit, fetchSavedOutfits, uploadOutfitPhoto } from "../api/outfitsApi";
 import OutfitCard from "../components/OutfitCard";
 import useAuth from "../hooks/useAuth";
 
@@ -27,6 +27,7 @@ export default function SavedOutfitsPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [deletingOutfit, setDeletingOutfit] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -77,6 +78,36 @@ export default function SavedOutfitsPage() {
       setError(requestError.message);
     } finally {
       setUploadingPhoto(false);
+    }
+  }
+
+  async function handleDeleteOutfit(outfit) {
+    if (!outfit?.id) {
+      return;
+    }
+
+    setDeletingOutfit(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await deleteSavedOutfit(token, outfit.id);
+
+      setOutfits((currentOutfits) => {
+        const nextOutfits = currentOutfits.filter((entry) => entry.id !== outfit.id);
+        setActiveIndex((currentIndex) =>
+          nextOutfits.length ? Math.min(currentIndex, nextOutfits.length - 1) : 0,
+        );
+        if (!nextOutfits.length) {
+          setIsModalOpen(false);
+        }
+        return nextOutfits;
+      });
+      setMessage("Образ удален из сохраненных.");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setDeletingOutfit(false);
     }
   }
 
@@ -143,8 +174,10 @@ export default function SavedOutfitsPage() {
         <OutfitCard
           outfit={activeOutfit}
           isSaved
+          onDelete={handleDeleteOutfit}
           onPhotoUpload={handlePhotoUpload}
           isUploadingPhoto={uploadingPhoto}
+          isDeleting={deletingOutfit}
           boardBadge={`${activeIndex + 1}/${outfits.length}`}
           onPrevious={showPreviousOutfit}
           onNext={showNextOutfit}

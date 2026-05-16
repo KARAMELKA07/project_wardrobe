@@ -118,6 +118,20 @@ def get_outfit(outfit_id):
     return jsonify({"outfit": outfit.to_dict()})
 
 
+@outfits_bp.delete("/<int:outfit_id>")
+@jwt_required()
+def delete_outfit(outfit_id):
+    user = current_user_or_404()
+    outfit = get_owned_outfit_or_404(user.id, outfit_id)
+
+    if outfit.styled_photo_url:
+        remove_local_image(outfit.styled_photo_url, current_app.config["UPLOAD_FOLDER"])
+
+    db.session.delete(outfit)
+    db.session.commit()
+    return jsonify({"message": "Образ удален."})
+
+
 @outfits_bp.post("/generate")
 @jwt_required()
 def generate_outfits():

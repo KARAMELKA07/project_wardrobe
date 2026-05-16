@@ -3,9 +3,28 @@ import json
 from ..utils.errors import ApiError
 
 
-ALLOWED_CATEGORIES = {"top", "bottom", "shoes", "outerwear", "accessory"}
+ALLOWED_CATEGORIES = {"top", "dress", "bottom", "shoes", "outerwear", "accessory"}
 ALLOWED_FIT_VALUES = {"fitted", "balanced", "loose", "oversized"}
 ALLOWED_LAYER_LEVELS = {"base", "mid", "outer", "support"}
+SHOE_SUBCATEGORY_ALIASES = {
+    "winter_boots": "boots",
+    "felt_boots": "boots",
+    "warm_boots": "boots",
+    "demi_boots": "boots",
+    "closed_shoes": "shoes",
+    "loafers": "shoes",
+    "summer_sneakers": "sneakers",
+    "espadrilles": "shoes",
+    "flip_flops": "slippers",
+    "heels": "pumps",
+    "high_heels": "pumps",
+}
+
+
+def normalize_catalog_token(value):
+    if value is None:
+        return None
+    return str(value).strip().lower().replace("-", "_").replace(" ", "_") or None
 
 
 def parse_list_field(value):
@@ -53,8 +72,10 @@ def parse_float_field(value, default=0.0):
 
 def validate_clothing_item_payload(payload):
     title = (payload.get("title") or "").strip()
-    category = (payload.get("category") or "").strip().lower()
-    subcategory = (payload.get("subcategory") or "").strip() or None
+    category = normalize_catalog_token(payload.get("category")) or ""
+    subcategory = normalize_catalog_token(payload.get("subcategory"))
+    if category == "shoes" and subcategory in SHOE_SUBCATEGORY_ALIASES:
+        subcategory = SHOE_SUBCATEGORY_ALIASES[subcategory]
     season = (payload.get("season") or "all-season").strip().lower()
     formality = (payload.get("formality") or "casual").strip().lower()
     fit = (payload.get("fit") or "").strip().lower() or None

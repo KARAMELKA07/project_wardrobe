@@ -19,20 +19,31 @@ def _resolve_runtime_path(path_value, default_path):
 
 
 class DeepFashionLocalClassifier:
-    def __init__(self):
+    def __init__(
+        self,
+        checkpoint_path=None,
+        metadata_path=None,
+        model_slug: str | None = None,
+        missing_model: str | None = None,
+        default_source_dataset: str = "DeepFashion",
+    ):
         self.enabled = os.getenv("FASHION_AI_ENABLED", "true").lower() == "true"
         self.checkpoint_path = _resolve_runtime_path(
-            os.getenv("DEEPFASHION_CHECKPOINT_PATH"),
+            checkpoint_path or os.getenv("DEEPFASHION_CHECKPOINT_PATH"),
             DEFAULT_CHECKPOINT_PATH,
         )
         self.metadata_path = _resolve_runtime_path(
-            os.getenv("DEEPFASHION_METADATA_PATH"),
+            metadata_path or os.getenv("DEEPFASHION_METADATA_PATH"),
             DEFAULT_METADATA_PATH,
         )
+        self._model_slug_override = model_slug
+        self._missing_model = missing_model or "deepfashion-local"
+        self._default_source_dataset = default_source_dataset
         self._loaded = False
         self._model = None
         self._class_names: list[str] = []
         self._architecture = "efficientnet_b0"
+        self._source_dataset = default_source_dataset
         self._preprocess = None
 
     def predict(self, image_bytes):
@@ -42,7 +53,7 @@ class DeepFashionLocalClassifier:
         if not self.checkpoint_path.exists():
             return self._empty_result(
                 "Локальная DeepFashion-модель не найдена. Пока используется резервный классификатор.",
-                model="deepfashion-local",
+                model=self._missing_model,
             )
 
         try:
@@ -50,7 +61,7 @@ class DeepFashionLocalClassifier:
         except Exception:
             return self._empty_result(
                 "Не удалось загрузить локальную DeepFashion-модель. Пока используется резервный классификатор.",
-                model="deepfashion-local",
+                model=self._missing_model,
             )
 
         try:
@@ -59,7 +70,7 @@ class DeepFashionLocalClassifier:
         except ImportError:
             return self._empty_result(
                 "Для локальной DeepFashion-модели не хватает зависимостей torch, torchvision или Pillow.",
-                model="deepfashion-local",
+                model=self._missing_model,
             )
 
         try:
@@ -71,7 +82,7 @@ class DeepFashionLocalClassifier:
         except Exception:
             return self._empty_result(
                 "Локальная DeepFashion-модель не смогла обработать изображение. Используется резервный классификатор.",
-                model="deepfashion-local",
+                model=self._missing_model,
             )
 
         sorted_indices = torch.argsort(probabilities, descending=True).tolist()
@@ -92,7 +103,8 @@ class DeepFashionLocalClassifier:
             "confidence": best_prediction["score"] if best_prediction else None,
             "top_predictions": top_predictions,
             "warnings": [],
-            "model": f"deepfashion-local:{self._architecture}",
+            "model": f"{self._model_slug()}:{self._architecture}",
+            "source_dataset": self._source_dataset,
         }
 
     def _ensure_loaded(self):
@@ -122,6 +134,7 @@ class DeepFashionLocalClassifier:
 
         self._class_names = list(class_names)
         self._architecture = architecture
+        self._source_dataset = metadata.get("source_dataset") or self._default_source_dataset
         self._model = self._build_model(models, architecture, len(self._class_names))
         self._model.load_state_dict(state_dict)
         self._model.eval()
@@ -161,6 +174,15 @@ class DeepFashionLocalClassifier:
 
         raise RuntimeError(f"Unsupported DeepFashion architecture: {architecture}")
 
+    def _model_slug(self):
+        if self._model_slug_override:
+            return self._model_slug_override
+        if "zappos" in self._source_dataset.lower():
+            return "zappos-local"
+        if "Fashion Product Images" in self._source_dataset:
+            return "fpid-local"
+        return "deepfashion-local"
+
     def _empty_result(self, warning_message, model):
         return {
             "subcategory": None,
@@ -168,4 +190,5 @@ class DeepFashionLocalClassifier:
             "top_predictions": [],
             "warnings": [warning_message],
             "model": model,
+            "source_dataset": self._source_dataset,
         }
