@@ -1,5 +1,7 @@
 from collections import Counter
 
+from ..models.clothing_item import ClothingItem
+
 
 class WardrobeAnalyticsService:
     @staticmethod
@@ -10,7 +12,8 @@ class WardrobeAnalyticsService:
 
         for item in items:
             category_counts[item.category] += 1
-            season_counts[item.season] += 1
+            for season in ClothingItem.parse_season_values(item.season):
+                season_counts[season] += 1
             for style in item.styles or []:
                 style_counts[style] += 1
 

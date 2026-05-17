@@ -814,9 +814,9 @@ class RecommendationEngine:
             )
 
         item_seasons = [
-            self._normalize_token(item.season)
+            season
             for item in items
-            if self._normalize_token(item.season)
+            for season in self._get_item_seasons(item)
         ]
         if not item_seasons:
             return 0.7
@@ -1151,7 +1151,7 @@ class RecommendationEngine:
             if self._item_matches_event_hard_rule(item, event_type)
             else 0.0
         )
-        season_score = self._score_item_season_fit(item.season, season) if season else 0.75
+        season_score = self._score_item_seasons_fit(item, season) if season else 0.75
         temperature_score = self._score_item_temperature_fit(item, request_context)
         weather_score = self._score_single_item_weather_fit(item, request_context)
 
@@ -1270,7 +1270,7 @@ class RecommendationEngine:
     def _get_item_climate_profile(self, item):
         category = self._normalize_token(getattr(item, "category", None))
         subcategory = self._normalize_token(getattr(item, "subcategory", None))
-        season = self._normalize_token(getattr(item, "season", None))
+        season = self._get_primary_item_season(item)
         warmth_level = self._estimate_item_warmth(item)
 
         profile = {
@@ -1345,7 +1345,7 @@ class RecommendationEngine:
         if temperature >= 23 and category == "outerwear" and subcategory in HEAVY_OUTERWEAR_TYPES:
             return False
         if temperature >= 22 and category == "top" and subcategory in WARM_TOP_TYPES:
-            season = self._normalize_token(item.season)
+            season = self._get_primary_item_season(item)
             if profile["warmth_level"] >= 1.0 or season in {"winter", "autumn"}:
                 return False
         if temperature >= 23 and category == "shoes" and subcategory in HOT_FORBIDDEN_SHOE_TYPES:
@@ -1579,6 +1579,46 @@ class RecommendationEngine:
         if token in SHOE_SUBCATEGORY_ALIASES:
             return SHOE_SUBCATEGORY_ALIASES[token]
         return token or None
+
+    def _get_item_seasons(self, item):
+        raw_value = getattr(item, "season", None)
+        if not raw_value:
+            return []
+
+        if isinstance(raw_value, list):
+            season_values = raw_value
+        else:
+            season_values = str(raw_value).split(",")
+
+        normalized = []
+        for value in season_values:
+            token = self._normalize_token(value)
+            if token and token not in normalized:
+                normalized.append(token)
+
+        if "all_season" in normalized:
+            return ["all_season"]
+        return normalized
+
+    def _score_item_seasons_fit(self, item, target_season):
+        item_seasons = self._get_item_seasons(item)
+        if not item_seasons:
+            return 0.9
+        return max(self._score_item_season_fit(item_season, target_season) for item_season in item_seasons)
+
+    def _get_primary_item_season(self, item):
+        item_seasons = self._get_item_seasons(item)
+        if not item_seasons:
+            return None
+        if "winter" in item_seasons:
+            return "winter"
+        if "autumn" in item_seasons:
+            return "autumn"
+        if "spring" in item_seasons:
+            return "spring"
+        if "summer" in item_seasons:
+            return "summer"
+        return item_seasons[0]
 
     def _normalize_color(self, value):
         token = self._normalize_token(value)
@@ -2715,7 +2755,7 @@ class RecommendationEngine:
             return max(0.1, explicit_insulation)
 
         item_subcategory = self._normalize_token(item.subcategory)
-        item_season = self._normalize_token(item.season)
+        item_season = self._get_primary_item_season(item)
         if item_season == "winter":
             base_warmth += 1.0
         elif item_season == "autumn":
@@ -2798,7 +2838,7 @@ class RecommendationEngine:
             return 0.7
 
         subcategory = self._normalize_token(shoes.subcategory)
-        season = self._normalize_token(shoes.season)
+        season = self._get_primary_item_season(shoes)
 
         if temperature <= -5:
             if subcategory in WINTER_SHOE_TYPES:

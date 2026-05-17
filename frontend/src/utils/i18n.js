@@ -96,6 +96,9 @@ export function translateRole(value) {
 
 
 export function translateSeason(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => translate(SEASON_LABELS, entry)).filter(Boolean).join(", ");
+  }
   return translate(SEASON_LABELS, value);
 }
 

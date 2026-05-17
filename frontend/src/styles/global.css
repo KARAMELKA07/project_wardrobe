@@ -460,12 +460,12 @@ p {
 }
 
 .primary-button {
-    background: #b4ccc6;
+    background: #6f948b;
     color: var(--text-inverse);
 }
 
     .primary-button:hover {
-        background: var(--surface-strong-hover);
+        background: #61857c;
     }
 
 .danger-button {
@@ -483,8 +483,9 @@ p {
 
 .secondary-button,
 .file-upload-button {
-    background: var(--surface-strong);
-    color: var(--text-inverse);
+    background: #dbe7e3;
+    color: #47635c;
+    border-color: #bfd3cd;
 }
 
 .file-upload-button {
@@ -499,7 +500,7 @@ p {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--text-inverse);
+        color: currentColor;
         font-size: 18px;
         font-weight: 500;
         pointer-events: none;
@@ -507,7 +508,21 @@ p {
 
     .secondary-button:hover,
     .file-upload-button:hover {
-        background: var(--surface-strong-hover);
+        background: #cfddd8;
+    }
+
+.file-upload-button-primary {
+    background: #b8cbc6;
+    color: #ffffff;
+    border-color: transparent;
+}
+
+    .file-upload-button-primary::after {
+        color: #ffffff;
+    }
+
+    .file-upload-button-primary:hover {
+        background: #a9c0b9;
     }
 
 .ghost-button {
@@ -624,16 +639,16 @@ p {
     text-align: center;
 }
 
-.form-loading-box strong {
-    font-size: 24px;
-    font-weight: 500;
-}
+    .form-loading-box strong {
+        font-size: 24px;
+        font-weight: 500;
+    }
 
-.form-loading-box span:last-child {
-    color: var(--text-soft);
-    font-size: 16px;
-    line-height: 1.45;
-}
+    .form-loading-box span:last-child {
+        color: var(--text-soft);
+        font-size: 16px;
+        line-height: 1.45;
+    }
 
 .form-spinner {
     width: 44px;
@@ -885,10 +900,10 @@ select:-webkit-autofill:focus {
     cursor: pointer;
 }
 
-.multi-select-trigger.is-open {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--focus-ring);
-}
+    .multi-select-trigger.is-open {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--focus-ring);
+    }
 
 .multi-select-summary,
 .multi-select-placeholder {
@@ -950,11 +965,11 @@ select:-webkit-autofill:focus {
     transition: background 160ms ease, border-color 160ms ease;
 }
 
-.multi-select-option:hover,
-.multi-select-option.is-selected {
-    background: var(--primary-soft);
-    border-color: var(--primary);
-}
+    .multi-select-option:hover,
+    .multi-select-option.is-selected {
+        background: var(--primary-soft);
+        border-color: var(--primary);
+    }
 
 .multi-select-option-main {
     display: inline-flex;
@@ -1025,31 +1040,64 @@ select:-webkit-autofill:focus {
     align-content: start;
 }
 
+.image-analysis-block {
+    display: grid;
+    gap: 16px;
+    align-content: start;
+}
+
+.field-heading-stack {
+    align-items: start;
+    gap: 6px;
+}
+
+    .field-heading-stack .field-helper {
+        margin: 0;
+    }
+
 .image-field-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
 }
 
-.image-field-row.has-preview {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
+    .image-field-row.has-preview {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
 
 .image-preview-card {
+    position: relative;
+    overflow: hidden;
     display: grid;
-    align-items: center;
-    min-height: 80px;
-    padding: 0 24px;
+    min-height: 160px;
     border: 1px solid var(--border);
     border-radius: 18px;
     background: var(--surface-raised);
     box-shadow: 0 12px 28px var(--shadow-soft-color);
 }
 
+.image-preview-thumb {
+    width: 100%;
+    height: 100%;
+    min-height: 160px;
+    object-fit: cover;
+    display: block;
+    background: var(--item-photo-bg);
+}
+
 .image-preview-meta {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
     display: grid;
-    gap: 4px;
+    gap: 2px;
     min-width: 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
     .image-preview-meta strong,
@@ -1069,9 +1117,87 @@ select:-webkit-autofill:focus {
         font-size: 13px;
     }
 
+.analysis-summary-vertical {
+    justify-items: start;
+    align-content: start;
+}
+
+.image-analysis-actions {
+    display: grid;
+    gap: 12px;
+    margin-top: auto;
+}
+
+    .image-analysis-actions .file-upload-button,
+    .image-analysis-actions .image-toggle-button {
+        width: 100%;
+    }
+
+.form-card.has-image-preview .image-ai-field {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.image-toggle-button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+}
+
+    .image-toggle-button.is-selected {
+        background: #c7d8d3;
+        border-color: #9fb9b1;
+        color: #47635c;
+    }
+
+.image-empty-actions {
+    display: grid;
+}
+
+    .image-empty-actions .file-upload-button {
+        width: 100%;
+    }
+
+.form-card.has-image-preview .form-grid > .image-field.full-width {
+    grid-column: 1;
+}
+
+.form-card.has-image-preview .form-grid > .image-ai-field.full-width {
+    grid-column: 2;
+}
+
+.form-card.has-image-preview .image-field-row.has-preview {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+    .form-card.has-image-preview .image-field-row.has-preview > .file-upload-button {
+        display: none;
+    }
+
+.form-card.has-image-preview .image-preview-card {
+    min-height: 360px;
+}
+
+.form-card.has-image-preview .image-preview-thumb {
+    max-height: 400px;
+    min-height: 360px;
+}
+
+@media (min-width: 921px) {
+    .form-card.has-image-preview .image-ai-field {
+        min-height: 360px;
+    }
+}
+
 @media (max-width: 920px) {
     .image-field-row.has-preview {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .form-card.has-image-preview .form-grid > .image-field.full-width,
+    .form-card.has-image-preview .form-grid > .image-ai-field.full-width {
+        grid-column: 1 / -1;
     }
 }
 
@@ -1901,10 +2027,10 @@ body.item-detail-modal-active .outfit-modal-backdrop {
     border: 1px solid var(--border-strong);
 }
 
-.outfit-photo-info-button .ui-icon {
-    width: 20px;
-    height: 20px;
-}
+    .outfit-photo-info-button .ui-icon {
+        width: 20px;
+        height: 20px;
+    }
 
     .outfit-photo-info-button:hover {
         background: #ffffff;

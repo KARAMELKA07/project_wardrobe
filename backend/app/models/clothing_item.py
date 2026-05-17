@@ -28,6 +28,20 @@ class ClothingItem(db.Model):
         cascade="all, delete-orphan",
     )
 
+    @staticmethod
+    def parse_season_values(value):
+        if not value:
+            return ["all-season"]
+        if isinstance(value, list):
+            normalized = [str(entry).strip().replace("_", "-") for entry in value if str(entry).strip()]
+        else:
+            normalized = [chunk.strip().replace("_", "-") for chunk in str(value).split(",") if chunk.strip()]
+        if not normalized:
+            return ["all-season"]
+        if "all-season" in normalized or "all_season" in normalized:
+            return ["all-season"]
+        return normalized
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -38,7 +52,7 @@ class ClothingItem(db.Model):
             "subcategory": self.subcategory,
             "colors": self.colors or [],
             "styles": self.styles or [],
-            "season": self.season,
+            "season": self.parse_season_values(self.season),
             "formality": self.formality,
             "fit": self.fit,
             "layer_level": self.layer_level,

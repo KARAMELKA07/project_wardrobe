@@ -4,6 +4,7 @@ from ..utils.errors import ApiError
 
 
 ALLOWED_CATEGORIES = {"top", "dress", "bottom", "shoes", "outerwear", "accessory"}
+ALLOWED_SEASON_VALUES = {"all_season", "spring", "summer", "autumn", "winter"}
 ALLOWED_FIT_VALUES = {"fitted", "balanced", "loose", "oversized"}
 ALLOWED_LAYER_LEVELS = {"base", "mid", "outer", "support"}
 FIT_SUPPORTED_CATEGORIES = {"top", "dress", "bottom", "outerwear"}
@@ -81,7 +82,15 @@ def validate_clothing_item_payload(payload):
     subcategory = normalize_catalog_token(payload.get("subcategory"))
     if category == "shoes" and subcategory in SHOE_SUBCATEGORY_ALIASES:
         subcategory = SHOE_SUBCATEGORY_ALIASES[subcategory]
-    season = (payload.get("season") or "all-season").strip().lower()
+    raw_seasons = [normalize_catalog_token(entry) for entry in parse_list_field(payload.get("season"))]
+    normalized_seasons = [entry for entry in raw_seasons if entry]
+    if not normalized_seasons:
+        normalized_seasons = ["all_season"]
+    if "all_season" in normalized_seasons:
+        normalized_seasons = ["all_season"]
+    invalid_seasons = [entry for entry in normalized_seasons if entry not in ALLOWED_SEASON_VALUES]
+    if invalid_seasons:
+        raise ApiError("Некорректно указаны значения сезона.", 400)
     formality = (payload.get("formality") or "casual").strip().lower()
     fit = (payload.get("fit") or "").strip().lower() or None
     layer_level = (payload.get("layer_level") or "").strip().lower() or None
@@ -128,7 +137,7 @@ def validate_clothing_item_payload(payload):
         "subcategory": subcategory,
         "colors": parse_list_field(payload.get("colors")),
         "styles": parse_list_field(payload.get("styles")),
-        "season": season or "all-season",
+        "season": ",".join(normalized_seasons).replace("all_season", "all-season"),
         "formality": formality or "casual",
         "fit": fit,
         "layer_level": layer_level,

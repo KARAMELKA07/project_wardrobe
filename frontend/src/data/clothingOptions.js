@@ -72,6 +72,90 @@ export const SUBCATEGORY_OPTIONS = {
   ],
 };
 
+const EXTENDED_SUBCATEGORY_OPTIONS = {
+  top: [
+    { value: "t_shirt", label: "Футболка" },
+    { value: "shirt", label: "Рубашка" },
+    { value: "blouse", label: "Блузка" },
+    { value: "top", label: "Топ" },
+    { value: "polo", label: "Поло" },
+    { value: "longsleeve", label: "Лонгслив" },
+    { value: "kurta", label: "Курта" },
+    { value: "hoodie", label: "Худи" },
+    { value: "sweater", label: "Свитер" },
+    { value: "cardigan", label: "Кардиган" },
+    { value: "turtleneck", label: "Водолазка" },
+    { value: "sweatshirt", label: "Свитшот" },
+    { value: "vest", label: "Жилет" },
+    { value: "crop_top", label: "Кроп-топ" },
+    { value: "tunic", label: "Туника" },
+    { value: "underwear", label: "Нижнее белье" },
+    { value: "sleepwear", label: "Одежда для сна" },
+  ],
+  dress: [{ value: "dress", label: "Платье" }],
+  bottom: [
+    { value: "jeans", label: "Джинсы" },
+    { value: "trousers", label: "Брюки" },
+    { value: "chinos", label: "Чиносы" },
+    { value: "joggers", label: "Джоггеры" },
+    { value: "leggings", label: "Леггинсы" },
+    { value: "culottes", label: "Кюлоты" },
+    { value: "shorts", label: "Шорты" },
+    { value: "skirt", label: "Юбка" },
+    { value: "mini_skirt", label: "Мини-юбка" },
+    { value: "midi_skirt", label: "Миди-юбка" },
+    { value: "maxi_skirt", label: "Макси-юбка" },
+  ],
+  shoes: [
+    { value: "shoes", label: "Обувь" },
+    { value: "ankle_boots", label: "Ботильоны" },
+    { value: "boots", label: "Ботинки" },
+    { value: "winter_boots", label: "Зимние сапоги" },
+    { value: "felt_boots", label: "Валенки" },
+    { value: "warm_boots", label: "Теплые ботинки" },
+    { value: "demi_boots", label: "Демисезонные ботинки" },
+    { value: "closed_shoes", label: "Закрытые туфли" },
+    { value: "pumps", label: "Туфли" },
+    { value: "loafers", label: "Лоферы" },
+    { value: "flats", label: "Балетки" },
+    { value: "sneakers", label: "Кроссовки" },
+    { value: "summer_sneakers", label: "Летние кроссовки" },
+    { value: "sandals", label: "Босоножки" },
+    { value: "espadrilles", label: "Эспадрильи" },
+    { value: "flip_flops", label: "Шлепки" },
+    { value: "slippers", label: "Сланцы" },
+  ],
+  outerwear: [
+    { value: "coat", label: "Пальто" },
+    { value: "jacket", label: "Куртка" },
+    { value: "parka", label: "Парка" },
+    { value: "down_jacket", label: "Пуховик" },
+    { value: "trench", label: "Тренч" },
+    { value: "blazer", label: "Пиджак" },
+    { value: "leather_jacket", label: "Кожаная куртка" },
+    { value: "windbreaker", label: "Ветровка" },
+    { value: "vest_outerwear", label: "Жилет" },
+  ],
+  accessory: [
+    { value: "bag", label: "Сумка" },
+    { value: "backpack", label: "Рюкзак" },
+    { value: "wallet", label: "Кошелек" },
+    { value: "belt", label: "Ремень" },
+    { value: "watch", label: "Часы" },
+    { value: "sunglasses", label: "Солнцезащитные очки" },
+    { value: "hat", label: "Шапка" },
+    { value: "cap", label: "Кепка" },
+    { value: "scarf", label: "Шарф" },
+    { value: "gloves", label: "Перчатки" },
+    { value: "socks", label: "Носки" },
+    { value: "jewelry", label: "Украшение" },
+    { value: "bracelet", label: "Браслет" },
+    { value: "earrings", label: "Серьги" },
+    { value: "necklace", label: "Ожерелье" },
+    { value: "tie", label: "Галстук" },
+  ],
+};
+
 export const ZAPPOS_SHOE_OPTIONS = [
   { value: "shoes", label: "Обувь" },
   { value: "ankle_boots", label: "Ботильоны" },
@@ -119,6 +203,13 @@ export const COLOR_OPTIONS = [
   { value: "purple", label: "Фиолетовый", hex: "#8d6bc7", border: "#7958b2" },
 ];
 
+COLOR_OPTIONS.splice(9, 0, {
+  value: "sky_blue",
+  label: "Голубой",
+  hex: "#7db9ef",
+  border: "#5ea4e3",
+});
+
 export const FIT_OPTIONS = [
   { value: "fitted", label: "Приталенная" },
   { value: "balanced", label: "Сбалансированная" },
@@ -140,6 +231,14 @@ export const INSULATION_OPTIONS = [
   { value: "1.5", label: "Теплая" },
   { value: "2.0", label: "Очень теплая" },
   { value: "2.6", label: "Для сильного холода" },
+];
+
+export const SEASON_OPTIONS = [
+  { value: "all-season", label: "Всесезон" },
+  { value: "spring", label: "Весна" },
+  { value: "summer", label: "Лето" },
+  { value: "autumn", label: "Осень" },
+  { value: "winter", label: "Зима" },
 ];
 
 const DEFAULT_FIT_BY_SUBCATEGORY = {
@@ -253,6 +352,10 @@ const COLOR_ADJECTIVES = {
   purple: { m: "фиолетовый", f: "фиолетовая", n: "фиолетовое", pl: "фиолетовые" },
 };
 
+Object.assign(COLOR_ADJECTIVES, {
+  sky_blue: { m: "голубой", f: "голубая", n: "голубое", pl: "голубые" },
+});
+
 const DEFAULT_LAYER_LEVEL_BY_SUBCATEGORY = {
   t_shirt: "base",
   shirt: "base",
@@ -317,7 +420,7 @@ Object.assign(DEFAULT_INSULATION_BY_SUBCATEGORY, {
 const WATERPROOF_SUBCATEGORIES = new Set(["jacket"]);
 const WINDPROOF_SUBCATEGORIES = new Set(["jacket"]);
 
-const SUBCATEGORY_LABELS = Object.values(SUBCATEGORY_OPTIONS)
+const SUBCATEGORY_LABELS = Object.values(EXTENDED_SUBCATEGORY_OPTIONS)
   .flat()
   .reduce((acc, entry) => {
     acc[entry.value] = entry.label;
@@ -400,10 +503,7 @@ export function normalizeCatalogValue(value) {
 
 export function getSubcategoryOptions(category) {
   const normalizedCategory = normalizeCatalogValue(category);
-  if (normalizedCategory === "shoes") {
-    return ZAPPOS_SHOE_OPTIONS;
-  }
-  return SUBCATEGORY_OPTIONS[normalizedCategory] || [];
+  return EXTENDED_SUBCATEGORY_OPTIONS[normalizedCategory] || [];
 }
 
 export function getSubcategoryLabel(value) {
@@ -416,6 +516,32 @@ export function getStyleLabel(value) {
 
 export function getColorLabel(value) {
   return COLOR_LABELS[normalizeValue(value)] || value || "";
+}
+
+export function normalizeSeasonValues(value) {
+  if (!value) {
+    return ["all-season"];
+  }
+
+  const rawValues = Array.isArray(value) ? value : [value];
+  const normalized = Array.from(
+    new Set(
+      rawValues
+        .flatMap((entry) => String(entry || "").split(","))
+        .map((entry) => entry.trim().toLowerCase().replace(/_/g, "-"))
+        .filter(Boolean),
+    ),
+  );
+
+  if (!normalized.length) {
+    return ["all-season"];
+  }
+
+  if (normalized.includes("all-season")) {
+    return ["all-season"];
+  }
+
+  return normalized;
 }
 
 export function getFitLabel(value) {
