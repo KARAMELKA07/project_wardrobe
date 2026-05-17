@@ -1758,26 +1758,26 @@ body.item-detail-modal-active .outfit-modal-backdrop {
 }
 
 .board-grid-count-3 .board-slot-index-0 {
-    left: 23%;
-    top: 27%;
-    width: 28%;
-    height: 42%;
+    left: 33%;
+    top: 28%;
+    width: 29%;
+    height: 44%;
     transform: translate(-50%, -50%);
 }
 
 .board-grid-count-3 .board-slot-index-1 {
-    left: 23%;
-    top: 73%;
-    width: 28%;
-    height: 42%;
+    left: 33%;
+    top: 72%;
+    width: 29%;
+    height: 44%;
     transform: translate(-50%, -50%);
 }
 
 .board-grid-count-3 .board-slot-index-2 {
-    left: 55%;
+    left: 66%;
     top: 50%;
-    width: 28%;
-    height: 42%;
+    width: 29%;
+    height: 44%;
     transform: translate(-50%, -50%);
 }
 
