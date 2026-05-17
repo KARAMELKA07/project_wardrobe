@@ -8,7 +8,7 @@ import {
   uploadOutfitPhoto,
 } from "../api/outfitsApi";
 import OutfitCard from "../components/OutfitCard";
-import { COLOR_OPTIONS, STYLE_OPTIONS } from "../data/clothingOptions";
+import { COLOR_OPTIONS } from "../data/clothingOptions";
 import useAuth from "../hooks/useAuth";
 import useCurrentWeather from "../hooks/useCurrentWeather";
 import { translateCategory } from "../utils/i18n";
@@ -29,6 +29,25 @@ const CONSTRAINT_OPTIONS = [
   { value: "no_skirts", label: "Без юбок" },
   { value: "no_bright_colors", label: "Без ярких цветов" },
   { value: "no_outerwear", label: "Без верхней одежды" },
+];
+
+const EVENT_TYPE_OPTIONS = [
+  { value: "office", label: "Офис" },
+  { value: "casual", label: "На каждый день" },
+  { value: "evening", label: "Вечерний выход" },
+  { value: "sport", label: "Тренировка" },
+  { value: "party", label: "Вечеринка" },
+  { value: "travel", label: "Поездка" },
+  { value: "date", label: "Свидание" },
+];
+
+const PREFERRED_STYLE_OPTIONS = [
+  { value: "", label: "Любой стиль" },
+  { value: "minimal", label: "Минимализм" },
+  { value: "classic", label: "Классика" },
+  { value: "street", label: "Стритстайл" },
+  { value: "romantic", label: "Романтичный" },
+  { value: "statement", label: "Акцентный" },
 ];
 
 function toggleArrayValue(currentValues, value) {
@@ -387,14 +406,15 @@ export default function OutfitGeneratorPage() {
               value={formValues.event_type}
               onChange={handleChange}
             >
-              <option value="office">Офис</option>
-              <option value="casual">Повседневный</option>
-              <option value="evening">Вечерний</option>
-              <option value="sport">Спортивный</option>
-              <option value="party">Вечеринка</option>
-              <option value="travel">Поездка</option>
-              <option value="date">Свидание</option>
+              {EVENT_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
+            <span className="field-helper form-field-helper">
+              Определяет ситуацию подбора и ожидаемый уровень формальности вещей.
+            </span>
           </label>
 
           <div className="field-block">
@@ -419,13 +439,15 @@ export default function OutfitGeneratorPage() {
               value={formValues.preferred_style}
               onChange={handleChange}
             >
-              <option value="">Любой стиль</option>
-              {STYLE_OPTIONS.map((option) => (
+              {PREFERRED_STYLE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
+            <span className="field-helper form-field-helper">
+              Уточняет визуальное направление образа внутри выбранного события и не дублирует его.
+            </span>
           </label>
 
           <label>

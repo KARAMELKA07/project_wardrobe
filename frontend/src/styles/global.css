@@ -783,6 +783,11 @@ select:-webkit-autofill:focus {
     line-height: 1.25;
 }
 
+.form-field-helper {
+    display: block;
+    margin-top: 8px;
+}
+
 .chip-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
