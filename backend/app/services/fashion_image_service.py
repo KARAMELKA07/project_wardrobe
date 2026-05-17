@@ -660,6 +660,13 @@ class FashionImageService:
         deepfashion_confidence = float(deepfashion_result.get("confidence") or 0.0)
         fpid_confidence = float(fpid_result.get("confidence") or 0.0)
         warnings = self._merge_warnings(deepfashion_result, fpid_result)
+        metrics = self._get_object_metrics(image_bytes)
+        deepfashion_bottom_like = deepfashion_category == "bottom" or deepfashion_subcategory in {
+            "skirt",
+            "mini_skirt",
+            "midi_skirt",
+            "maxi_skirt",
+        }
         dress_override = self._resolve_fpid_dress_override(image_bytes, deepfashion_result, fpid_result)
         if dress_override:
             return self._build_override_result(
@@ -667,26 +674,6 @@ class FashionImageService:
                 subcategory="dress",
                 confidence=dress_override,
                 route="deepfashion_checked_by_fpid_dress",
-                warnings=warnings,
-                base_result=deepfashion_result,
-            )
-
-        deepfashion_apparel_like = deepfashion_category in {"top", "bottom", "outerwear", "dress"}
-        allow_fpid_accessory_override = (
-            fpid_category == "accessory"
-            and fpid_subcategory
-            and (
-                not deepfashion_apparel_like
-                or deepfashion_confidence < 0.55
-            )
-        )
-
-        if allow_fpid_accessory_override:
-            return self._build_override_result(
-                fpid_result,
-                subcategory=fpid_subcategory,
-                confidence=fpid_confidence,
-                route="fpid_primary_accessory",
                 warnings=warnings,
                 base_result=deepfashion_result,
             )
@@ -699,16 +686,22 @@ class FashionImageService:
             fpid_subcategory in SHOE_SUBCATEGORIES
             or fpid_category == "shoes"
         )
+        deepfashion_shoe_signal = self._top_prediction_shoe_score(deepfashion_result)
+        fpid_shoe_signal = self._top_prediction_shoe_score(fpid_result)
+        looks_like_shoe_object = self._looks_like_shoe_object_from_metrics(metrics)
 
         shoe_base_result = None
         if deepfashion_is_shoe:
             shoe_base_result = deepfashion_result
-        elif fpid_is_shoe and (
-            not deepfashion_subcategory
-            or deepfashion_category == "accessory"
-            or deepfashion_confidence < self.deepfashion_threshold
-        ):
+        elif fpid_is_shoe:
             shoe_base_result = fpid_result
+        elif (
+            not deepfashion_bottom_like
+            and looks_like_shoe_object
+            and max(deepfashion_shoe_signal, fpid_shoe_signal) >= 0.08
+            and deepfashion_confidence < 0.82
+        ):
+            shoe_base_result = fpid_result if fpid_shoe_signal >= deepfashion_shoe_signal else deepfashion_result
 
         if shoe_base_result:
             zappos_route = self._zappos_refinement_route(shoe_base_result, image_bytes)
@@ -718,6 +711,56 @@ class FashionImageService:
             result = dict(shoe_base_result)
             result["warnings"] = warnings
             result["classification_route"] = "shoe_fallback"
+            return result
+
+        deepfashion_apparel_like = deepfashion_category in APPAREL_CATEGORIES
+        fpid_accessory_trustworthy = (
+            fpid_category == "accessory"
+            and fpid_subcategory
+            and self._is_fpid_accessory_trustworthy(fpid_result, metrics)
+        )
+        strong_fpid_accessory_override = (
+            fpid_accessory_trustworthy
+            and fpid_confidence >= max(self.fpid_accessory_confidence_threshold, deepfashion_confidence + 0.20)
+        )
+
+        if strong_fpid_accessory_override and (
+            not deepfashion_bottom_like
+            or deepfashion_confidence < 0.50
+        ):
+            return self._build_override_result(
+                fpid_result,
+                subcategory=fpid_subcategory,
+                confidence=fpid_confidence,
+                route="fpid_primary_accessory_strong",
+                warnings=warnings,
+                base_result=deepfashion_result,
+            )
+
+        if fpid_accessory_trustworthy and (
+            not deepfashion_apparel_like
+            or (deepfashion_category in {"top", "outerwear"} and deepfashion_confidence < 0.72)
+        ):
+            return self._build_override_result(
+                fpid_result,
+                subcategory=fpid_subcategory,
+                confidence=fpid_confidence,
+                route="fpid_primary_accessory",
+                warnings=warnings,
+                base_result=deepfashion_result,
+            )
+
+        if deepfashion_bottom_like and deepfashion_subcategory:
+            result = dict(deepfashion_result)
+            result["warnings"] = warnings
+            result["classification_route"] = (
+                "deepfashion_primary"
+                if deepfashion_confidence >= self.deepfashion_threshold
+                else "deepfashion_primary_low_confidence"
+            )
+            result["support_model"] = fpid_result.get("model")
+            result["support_subcategory"] = fpid_subcategory
+            result["support_confidence"] = fpid_result.get("confidence")
             return result
 
         if deepfashion_subcategory and deepfashion_confidence >= self.deepfashion_threshold:
@@ -737,6 +780,16 @@ class FashionImageService:
             result["support_subcategory"] = fpid_subcategory
             result["support_confidence"] = fpid_result.get("confidence")
             return result
+
+        if fpid_accessory_trustworthy:
+            return self._build_override_result(
+                fpid_result,
+                subcategory=fpid_subcategory,
+                confidence=fpid_confidence,
+                route="fpid_primary_accessory",
+                warnings=warnings,
+                base_result=deepfashion_result,
+            )
 
         return None
 
@@ -973,13 +1026,28 @@ class FashionImageService:
         metrics = self._get_object_metrics(image_bytes)
         if not metrics:
             return False
-        return self._looks_like_horizontal_shoe_object_from_metrics(metrics)
+        return self._looks_like_shoe_object_from_metrics(metrics)
+
+    def _looks_like_shoe_object_from_metrics(self, metrics):
+        if not metrics:
+            return False
+        return self._looks_like_horizontal_shoe_object_from_metrics(metrics) or self._looks_like_tall_shoe_object_from_metrics(
+            metrics
+        )
 
     def _looks_like_horizontal_shoe_object_from_metrics(self, metrics):
         return (
             metrics["aspect_width"] >= 1.15
             and 0.03 <= metrics["object_area"] <= 0.65
             and metrics["height_coverage"] <= 0.72
+        )
+
+    def _looks_like_tall_shoe_object_from_metrics(self, metrics):
+        return (
+            metrics["aspect_height"] >= 1.18
+            and 0.03 <= metrics["object_area"] <= 0.58
+            and metrics["width_coverage"] <= 0.52
+            and metrics["height_coverage"] <= 0.88
         )
 
     def _looks_like_long_one_piece_garment(self, image_bytes):
@@ -1023,11 +1091,13 @@ class FashionImageService:
         if subcategory == "belt":
             return metrics["aspect_width"] >= 1.85 and metrics["height_coverage"] <= 0.48
         if subcategory in {"bracelet", "earrings", "jewelry", "necklace", "sunglasses", "watch"}:
-            return metrics["object_area"] <= 0.34 and metrics["height_coverage"] <= 0.68
+            return confidence >= 0.55 and metrics["object_area"] <= 0.55 and metrics["height_coverage"] <= 0.88
         if subcategory in {"wallet", "socks"}:
-            return metrics["object_area"] <= 0.42 and metrics["height_coverage"] <= 0.72
+            return confidence >= 0.52 and metrics["object_area"] <= 0.50 and metrics["height_coverage"] <= 0.82
         if subcategory in {"bag", "hat", "scarf"}:
-            return not (self._looks_like_large_apparel_object(metrics) and confidence < 0.86)
+            return confidence >= 0.58 and not (
+                deepfashion_like := self._looks_like_large_apparel_object(metrics)
+            ) or (confidence >= 0.82 and deepfashion_like)
         return True
 
     def _refine_shoe_prediction(self, image_bytes, base_result, route):
