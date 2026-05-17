@@ -1559,99 +1559,127 @@ body.item-detail-modal-active .outfit-modal-backdrop {
 }
 
 .board-grid-count-2 .board-slot-index-0 {
-    left: 35%;
+    left: 34%;
     top: 50%;
-    width: 36%;
-    height: 64%;
+    width: 31%;
+    height: 66%;
     transform: translate(-50%, -50%);
 }
 
 .board-grid-count-2 .board-slot-index-1 {
-    left: 65%;
+    left: 66%;
     top: 50%;
-    width: 36%;
-    height: 64%;
+    width: 31%;
+    height: 66%;
     transform: translate(-50%, -50%);
 }
 
 .board-grid-count-3 .board-slot-index-0 {
-    left: 50%;
-    top: 24%;
-    width: 34%;
-    height: 34%;
+    left: 23%;
+    top: 27%;
+    width: 28%;
+    height: 42%;
     transform: translate(-50%, -50%);
 }
 
 .board-grid-count-3 .board-slot-index-1 {
-    left: 50%;
-    top: 56%;
-    width: 36%;
-    height: 40%;
+    left: 23%;
+    top: 73%;
+    width: 28%;
+    height: 42%;
     transform: translate(-50%, -50%);
 }
 
 .board-grid-count-3 .board-slot-index-2 {
-    left: 50%;
-    top: 83%;
-    width: 38%;
-    height: 24%;
+    left: 55%;
+    top: 50%;
+    width: 28%;
+    height: 42%;
     transform: translate(-50%, -50%);
 }
 
-.board-grid-count-4 .board-slot-index-0,
+.board-grid-count-4 .board-slot-index-0 {
+    left: 25%;
+    top: 27%;
+    width: 31%;
+    height: 36%;
+    transform: translate(-50%, -50%);
+}
+
+.board-grid-count-4 .board-slot-index-1 {
+    left: 58%;
+    top: 27%;
+    width: 31%;
+    height: 36%;
+    transform: translate(-50%, -50%);
+}
+
+.board-grid-count-4 .board-slot-index-2 {
+    left: 35%;
+    top: 73%;
+    width: 31%;
+    height: 36%;
+    transform: translate(-50%, -50%);
+}
+
+.board-grid-count-4 .board-slot-index-3 {
+    left: 68%;
+    top: 73%;
+    width: 31%;
+    height: 36%;
+    transform: translate(-50%, -50%);
+}
+
 .board-grid-count-5 .board-slot-index-0,
 .board-grid-count-6 .board-slot-index-0 {
-    left: 34%;
-    top: 30%;
-    width: 30%;
-    height: 34%;
+    left: 17%;
+    top: 27%;
+    width: 27%;
+    height: 36%;
     transform: translate(-50%, -50%);
 }
 
-.board-grid-count-4 .board-slot-index-1,
 .board-grid-count-5 .board-slot-index-1,
 .board-grid-count-6 .board-slot-index-1 {
-    left: 66%;
-    top: 30%;
-    width: 30%;
-    height: 34%;
+    left: 50%;
+    top: 27%;
+    width: 27%;
+    height: 36%;
     transform: translate(-50%, -50%);
 }
 
-.board-grid-count-4 .board-slot-index-2,
 .board-grid-count-5 .board-slot-index-2,
 .board-grid-count-6 .board-slot-index-2 {
-    left: 34%;
-    top: 70%;
-    width: 30%;
-    height: 34%;
+    left: 83%;
+    top: 27%;
+    width: 27%;
+    height: 36%;
     transform: translate(-50%, -50%);
 }
 
-.board-grid-count-4 .board-slot-index-3,
 .board-grid-count-5 .board-slot-index-3,
 .board-grid-count-6 .board-slot-index-3 {
-    left: 66%;
-    top: 70%;
-    width: 30%;
-    height: 34%;
+    left: 34%;
+    top: 73%;
+    width: 27%;
+    height: 36%;
     transform: translate(-50%, -50%);
 }
 
 .board-grid-count-5 .board-slot-index-4,
 .board-grid-count-6 .board-slot-index-4 {
-    left: 50%;
-    top: 50%;
-    width: 28%;
-    height: 30%;
+    left: 66%;
+    top: 73%;
+    width: 27%;
+    height: 36%;
     transform: translate(-50%, -50%);
 }
 
 .board-grid-count-6 .board-slot-index-5 {
-    left: 50%;
-    top: 86%;
-    width: 28%;
-    height: 24%;
+    left: 83%;
+    top: 73%;
+    width: 27%;
+    height: 36%;
     transform: translate(-50%, -50%);
 }
 
