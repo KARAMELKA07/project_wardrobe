@@ -293,6 +293,20 @@ export default function ClothingItemForm({
       ) : null}
 
       <form className="surface-card form-card" onSubmit={handleSubmit}>
+        {analysisLoading || loading ? (
+          <div className="form-loading-overlay" role="status" aria-live="polite">
+            <div className="form-loading-box">
+              <span className="form-spinner" aria-hidden="true" />
+              <strong>{analysisLoading ? "Анализируем изображение" : "Сохраняем вещь"}</strong>
+              <span>
+                {analysisLoading
+                  ? "Удаляем фон, определяем тип вещи и подбираем характеристики."
+                  : "Проверяем данные и сохраняем карточку вещи."}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
         <div className="form-grid">
           <label>
             Название

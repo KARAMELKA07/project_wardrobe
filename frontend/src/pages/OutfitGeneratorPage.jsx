@@ -368,6 +368,16 @@ export default function OutfitGeneratorPage() {
       </div>
 
       <form className="surface-card form-card generator-form-card" onSubmit={handleSubmit}>
+        {loading ? (
+          <div className="form-loading-overlay" role="status" aria-live="polite">
+            <div className="form-loading-box">
+              <span className="form-spinner" aria-hidden="true" />
+              <strong>Подбираем образы</strong>
+              <span>Оцениваем вещи, погоду, стиль и ограничения.</span>
+            </div>
+          </div>
+        ) : null}
+
         <div className="form-grid">
           <label>
             Тип события
