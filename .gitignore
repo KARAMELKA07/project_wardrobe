@@ -84,3 +84,7 @@ backend/Category and Attribute Prediction Benchmark/
 # ===== Demo materials =====
 demo_assets/recognition_samples/*
 !demo_assets/recognition_samples/.gitkeep
+!demo_assets/recognition_samples/*.png
+!demo_assets/recognition_samples/*.jpg
+!demo_assets/recognition_samples/*.jpeg
+!demo_assets/recognition_samples/*.webp
